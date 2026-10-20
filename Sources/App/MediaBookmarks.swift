@@ -57,7 +57,7 @@ private struct BookmarkEditor: View {
     @State private var note: String
     @State private var saving = false
     @State private var discard = false
-    @State private var error: String?
+    @State private var errorMessage: String?
     @FocusState private var focused: Bool
 
     init(bookmark: MediaBookmark) {
@@ -86,7 +86,7 @@ private struct BookmarkEditor: View {
                         Task {
                             var updated = bookmark; updated.note = note
                             do { try await vm.saveBookmark(updated); dismiss() }
-                            catch { error = error.localizedDescription }
+                            catch { errorMessage = error.localizedDescription }
                             saving = false
                         }
                     }.disabled(saving || note.count > MediaBookmark.noteLimit)
@@ -97,9 +97,9 @@ private struct BookmarkEditor: View {
                 Button("Не сохранять", role: .destructive) { dismiss() }
                 Button("Продолжить редактирование", role: .cancel) {}
             }
-            .alert("Не удалось сохранить закладку", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
-                Button("Закрыть") { error = nil }
-            } message: { Text(error ?? "") }
+            .alert("Не удалось сохранить закладку", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+                Button("Закрыть") { errorMessage = nil }
+            } message: { Text(errorMessage ?? "") }
             .task { focused = true }
         }
     }
