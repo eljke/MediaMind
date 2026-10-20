@@ -15,7 +15,7 @@ struct MediaStatusLabel: View {
     private var title: String {
         switch status {
         case .empty: return "Без расшифровки"
-        case .ready(let count): return "Расшифровка · \(count) фрагментов"
+        case .ready(let count): return "Расшифровка · фрагментов: \(count)"
         case .paused: return "Распознавание приостановлено"
         case .failed: return "Ошибка распознавания"
         }
