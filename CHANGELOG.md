@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.2.1
+
+- fix(import): support Files metadata fallback and Photos video import
+
 ## v0.2.0
 
 - chore: initialize MediaMind sources and build workflows
