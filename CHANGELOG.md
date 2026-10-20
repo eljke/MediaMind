@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.3.0
+
+- feat(library): add bookmarks, transcript states and listening history
+
 ## v0.2.1
 
 - fix(import): support Files metadata fallback and Photos video import
