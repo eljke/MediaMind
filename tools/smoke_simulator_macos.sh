@@ -33,3 +33,9 @@ if not any(len(row)>=3 and row[0].isdigit() and sys.argv[1] in row[-1] for row i
 print('PASS: app process is running in the iPhone simulator; LiveContainer not tested')
 PY
 xcrun simctl io "$device" screenshot build/smoke/library.png
+xcodebuild -project "$name.xcodeproj" -scheme "$name" -configuration Debug \
+  -destination "platform=iOS Simulator,id=$device" -derivedDataPath build/Simulator \
+  -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO test > build/smoke/tests.log 2>&1 || {
+    tail -n 120 build/smoke/tests.log
+    exit 1
+  }

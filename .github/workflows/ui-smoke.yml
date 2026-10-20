@@ -5,6 +5,8 @@ on:
       - 'Sources/**'
       - 'Assets.xcassets/**'
       - 'MediaMind.xcodeproj/**'
+      - 'Tests/App/**'
+      - 'tools/generate_xcodeproj.py'
       - 'tools/smoke_simulator_macos.sh'
       - '.github/workflows/ui-smoke.yml'
   workflow_dispatch:
@@ -19,7 +21,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - name: Build, launch and capture iPhone simulator
+      - name: Build, test media import and capture iPhone simulator
         run: bash tools/smoke_simulator_macos.sh
       - uses: actions/upload-artifact@v4
         if: always()
