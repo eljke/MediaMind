@@ -1,8 +1,18 @@
 name: iPhone simulator smoke test
 on:
+  pull_request:
+    paths:
+      - 'Sources/**'
+      - 'Assets.xcassets/**'
+      - 'MediaMind.xcodeproj/**'
+      - 'tools/smoke_simulator_macos.sh'
+      - '.github/workflows/ui-smoke.yml'
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: simulator-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   launch:
     runs-on: xcode-27
