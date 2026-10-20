@@ -6,6 +6,66 @@ import SwiftUI
 
 @MainActor
 final class MediaWorkflowTests: XCTestCase {
+    func testSpeechPreparation() async throws {
+        let root = try temporaryFolder()
+        let speech = ScriptedSpeech()
+        speech.status = SpeechReadiness(permission:.notRequested,model:.missing,legacy:.ready)
+        let vm = MediaViewModel(root:root,speech:speech)
+        await vm.reload()
+        await vm.checkSpeech()
+        XCTAssertEqual(vm.speechReadiness?.issue,.permissionRequired)
+        vm.requestSpeechPermission()
+        try await waitUntil { !vm.busy }
+        XCTAssertEqual(speech.permissionRequests,1)
+        XCTAssertEqual(vm.speechReadiness?.engine,.recognizer)
+        vm.installSpeechModel()
+        try await waitUntil { !vm.busy }
+        XCTAssertEqual(speech.installRequests,1)
+        XCTAssertEqual(vm.speechReadiness?.engine,.analyzer)
+        XCTAssertTrue(vm.canTranscribe)
+        XCTAssertTrue(speech.offsets.isEmpty)
+    }
+
+    func testDownloadCancellation() async throws {
+        let root = try temporaryFolder()
+        let speech = ScriptedSpeech()
+        speech.status = SpeechReadiness(permission:.authorized,model:.missing,legacy:.offlineUnavailable)
+        speech.installDelay = .seconds(30)
+        let vm = MediaViewModel(root:root,speech:speech)
+        await vm.reload()
+        vm.installSpeechModel()
+        try await waitUntil { speech.installRequests == 1 }
+        vm.cancel()
+        try await waitUntil { !vm.busy }
+        XCTAssertEqual(vm.speechReadiness?.model,.downloading)
+        XCTAssertNil(vm.errorMessage)
+        XCTAssertTrue(vm.notice?.contains("iOS") == true)
+        let progress = vm.progress
+        speech.lateProgress?(0.9)
+        XCTAssertEqual(vm.progress,progress)
+        XCTAssertTrue(vm.items.isEmpty)
+    }
+
+    func testReadinessIgnoresOldLanguage() async throws {
+        let previous = UserDefaults.standard.string(forKey:"speechLanguage")
+        defer {
+            if let previous { UserDefaults.standard.set(previous,forKey:"speechLanguage") }
+            else { UserDefaults.standard.removeObject(forKey:"speechLanguage") }
+        }
+        let speech = ScriptedSpeech()
+        speech.delayedLanguage = "ru-RU"
+        let vm = MediaViewModel(root:try temporaryFolder(),speech:speech)
+        vm.language = "ru-RU"
+        let first = Task { await vm.checkSpeech() }
+        try await waitUntil { speech.probedLanguages.contains("ru-RU") }
+        speech.status = SpeechReadiness(permission:.denied,model:.installed,legacy:.ready)
+        vm.language = "en-US"
+        await vm.checkSpeech()
+        await first.value
+        XCTAssertEqual(vm.speechReadiness?.engine,.analyzer)
+        XCTAssertFalse(vm.checkingSpeech)
+    }
+
     func testTranscriptionResumes() async throws {
         let root = try temporaryFolder()
         let repo = try MediaRepository(url:root.appendingPathComponent("library.sqlite"))
@@ -152,7 +212,8 @@ final class MediaWorkflowTests: XCTestCase {
         try await repo.recordTranscriptionFailure("Офлайн-модель языка недоступна",for:failed.id)
         try await repo.savePlayback(PlaybackPosition(position:2.5),for:ready.id)
         try await repo.saveBookmark(MediaBookmark(mediaID:ready.id,position:2,note:"Главный тезис — вернуться к этому определению"))
-        let vm = MediaViewModel(root:root)
+        let speech = ScriptedSpeech()
+        let vm = MediaViewModel(root:root,speech:speech)
         await vm.reload()
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let previous = scene.windows.first(where: { $0.isKeyWindow })
@@ -161,11 +222,19 @@ final class MediaWorkflowTests: XCTestCase {
         defer { window.isHidden = true; window.rootViewController = nil; previous?.makeKey() }
         window.rootViewController = UIHostingController(rootView:MediaRoot().environmentObject(vm))
         window.makeKeyAndVisible()
+        window.layoutIfNeeded()
         try await Task.sleep(for:.milliseconds(500))
         attach(window,name:"Library")
         window.rootViewController = UIHostingController(rootView:NavigationStack { MediaDetail(item:ready) }.environmentObject(vm))
+        window.layoutIfNeeded()
         try await Task.sleep(for:.milliseconds(500))
         attach(window,name:"Bookmarks")
+        speech.status = SpeechReadiness(permission:.denied,model:.missing,legacy:.ready)
+        await vm.checkSpeech()
+        window.rootViewController = UIHostingController(rootView:MediaSettings().environmentObject(vm))
+        window.layoutIfNeeded()
+        try await Task.sleep(for:.milliseconds(500))
+        attach(window,name:"Speech readiness")
     }
 
     private func attach(_ window: UIWindow, name: String) {
@@ -206,6 +275,31 @@ private final class ScriptedSpeech: TranscriptionService {
     enum Ending { case pause, fail, finish }
     var ending = Ending.pause
     var offsets: [Double] = []
+    var status = SpeechReadiness(permission:.authorized,model:.unsupportedSystem,legacy:.ready)
+    var permissionRequests = 0
+    var installRequests = 0
+    var installDelay = Duration.milliseconds(20)
+    var lateProgress: ((Double) -> Void)?
+    var delayedLanguage = ""
+    var probedLanguages: [String] = []
+
+    func readiness(language: String) async -> SpeechReadiness {
+        let snapshot = status
+        probedLanguages.append(language)
+        if language == delayedLanguage { try? await Task.sleep(for:.milliseconds(100)) }
+        return snapshot
+    }
+
+    func requestPermission() async { permissionRequests += 1; status.permission = .authorized }
+
+    func installModel(language: String, progress: @escaping (Double) -> Void) async throws {
+        installRequests += 1
+        status.model = .downloading
+        lateProgress = progress
+        progress(0.5)
+        try await Task.sleep(for:installDelay)
+        status.model = .installed
+    }
 
     func transcribe(file: URL, checkpoint: TranscriptionCheckpoint, save: @escaping (TranscriptionCheckpoint) async throws -> Void, progress: @escaping (Double) -> Void) async throws -> [SpeechSegment] {
         offsets.append(checkpoint.nextOffset)

@@ -52,6 +52,7 @@ struct MediaDetail: View {
                         Text("Русский").tag("ru-RU")
                         Text("English").tag("en-US")
                     }.pickerStyle(.segmented).disabled(vm.busy)
+                    SpeechReadinessView()
                     VStack(spacing: 10) {
                         Button {
                             if segments.isEmpty && checkpoint == nil { pickSubtitle = true }
@@ -65,7 +66,7 @@ struct MediaDetail: View {
                         } label: {
                             Label(checkpoint?.language == vm.language ? "Продолжить распознавание" : "Распознать офлайн", systemImage: "waveform")
                                 .frame(maxWidth: .infinity, minHeight: 36)
-                        }.buttonStyle(.borderedProminent)
+                        }.buttonStyle(.borderedProminent).disabled(!vm.canTranscribe)
                     }.disabled(vm.busy || !vm.ready || loading)
                     if let checkpoint {
                         Label("Сохранено до \(Self.time(checkpoint.nextOffset)) · \(checkpoint.language == "ru-RU" ? "Русский" : "English")", systemImage: "pause.circle")
@@ -73,6 +74,7 @@ struct MediaDetail: View {
                         if checkpoint.language != vm.language {
                             Text("При смене языка распознавание начнётся заново.").font(.footnote).foregroundStyle(.secondary)
                         }
+                        Button("Начать заново") { confirmation = .speech }.frame(minHeight: 44).disabled(vm.busy || loading)
                     }
                     MediaBookmarks(item: item, canAdd: playback.player != nil, currentPosition: { playback.currentPosition }, seek: { playback.seek($0) })
                     if !segments.isEmpty {

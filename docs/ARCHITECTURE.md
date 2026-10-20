@@ -44,6 +44,12 @@ Playback snapshots have a position and timestamp; stale asynchronous writes cann
 
 The UI follows Apple's [progress guidance](https://developer.apple.com/design/human-interface-guidelines/progress-indicators): preparation uses an indeterminate indicator and measured progress uses a bar. Statuses include text and symbols alongside color. AVPlayer time observations are paired with [removal](https://developer.apple.com/documentation/avfoundation/avplayer/addperiodictimeobserver(forinterval:queue:using:)); database migration backups use the [SQLite Backup API](https://www.sqlite.org/backup.html).
 
+## Speech readiness and recovery
+
+`SpeechReadiness` selects a local engine from persisted-system capability facts, without assuming support for a language from its name. Installed SpeechAnalyzer models take priority on iOS 26+; legacy SFSpeechRecognizer requires on-device capability, availability and authorization. The [legacy permission](https://developer.apple.com/documentation/speech/asking-permission-to-use-speech-recognition) does not apply to SpeechAnalyzer. Read-only checks are independent of permission prompts and model installation. View-model generations reject stale results after language changes. The system-managed [AssetInventory](https://developer.apple.com/documentation/speech/assetinventory) only receives an installation request after explicit user action; download progress is observed and unregistered, and iOS may retry downloads later.
+
+Both adapters use the same audio-export/checkpoint loop. It validates loaded media duration, audio tracks, saved offsets and result timestamps; bounds temporary audio to 45 seconds and checks available disk space. Only finalized results enter checkpoints. SpeechAnalyzer input and result consumption run concurrently; finalization ends its streams, and timeout/cancellation finishes the analyzer. The legacy adapter keeps `requiresOnDeviceRecognition=true`. Failed or cancelled chunks never replace the published transcript, temporary files are removed, and old checkpoints remain compatible without a schema change. Native integration tests use real AVFoundation exports and SQLite persistence with a scripted recognizer at the speech boundary; actual speech models, permission prompts and LiveContainer still need physical-device verification.
+
 ## Continuous delivery contract
 
 - Work on `feature/*` / `fix/*`. AI coding agent creates commits only when it has actual working tree and Git permissions; never hallucinate commits or GitHub releases.

@@ -6,7 +6,7 @@ Find any moment in locally imported audio/video. Start with SRT/VTT import, tran
 
 ## Implemented
 
-SwiftUI media library, cancellable file import, local AVPlayer with playback speed and saved position, SRT/VTT import+export, timecoded transcript, Russian/English phrase search and playback from search results. Apple Speech uses on-device recognition only, with a saved checkpoint after each 45-second chunk. Library updates preserve transcripts. Deleted recordings stay in a persistent trash with restore and explicit permanent deletion. No recording from Spotify/YouTube/other apps.
+SwiftUI media library, cancellable file import, local AVPlayer with playback speed and saved position, SRT/VTT import+export, timecoded transcript, Russian/English phrase search and playback from search results. Apple Speech uses on-device recognition only, with a saved checkpoint after each 45-second chunk. SpeechAnalyzer uses installed models on supported systems; SFSpeechRecognizer provides the legacy offline path. Library updates preserve transcripts. Deleted recordings stay in a persistent trash with restore and explicit permanent deletion. No recording from Spotify/YouTube/other apps.
 
 Import limits: 2 GB per media file, 10 MB per subtitle file; UTF-8/UTF-16 subtitles. Files are copied into local storage, with a free-space check. Existing subtitles are replaced only after a successful import or complete transcription. Switching speech language starts a new transcription; checkpoints use the original language. Search shows the first 200 matches and ignores case and diacritics (including е/ё).
 
@@ -38,9 +38,19 @@ Schema v2 adds bookmarks, playback and recognition-failure tables. Existing data
 
 Manual verification: play a recording, pause using the native player, return to the library and resume from **Continue listening**. Relaunch and verify the same position. Add and edit a bookmark, jump to it, delete it and restore it. Replace subtitles and trash/restore the recording; verify the bookmark remains. Stop recognition and confirm the paused status; retry a failed recognition and verify the previous text remains available. Check large text, VoiceOver and light/dark appearance on the actual iPhone. Simulator tests cover the native player and persisted state; Apple Speech permissions still require device verification.
 
+## Offline speech readiness
+
+Open **Settings > Recognition** or expand the offline check on a recording. The check shows modern model status, legacy offline capability and the separate SFSpeechRecognizer permission. It never prompts for permission or downloads a model by itself. Refresh after changing iOS settings. Installed SpeechAnalyzer models take priority on supported iOS 26+ devices and languages; otherwise the existing offline recognizer is used when authorized and available. SpeechAnalyzer does not require the legacy recognition permission. The microphone is not used for imported recordings.
+
+**Download SpeechAnalyzer model** explicitly requests Apple's system-managed model for the selected language and displays its progress. The initial download needs internet and disk space; media never goes to a server. iOS may retry or continue model downloads after an error, cancellation or leaving the app, so refresh to inspect the actual state. Legacy model installation is not managed by this app. Device/language support is queried at runtime; a ready model is not proof of successful operation in LiveContainer.
+
+Both engines share bounded 45-second audio exports, cancellation, checkpoint validation and temporary-file cleanup. Each finalized chunk is saved before proceeding; silent successful chunks advance progress. Recognition has a 90-second per-chunk timeout. Resuming starts at the last saved boundary, and the unfinished chunk is repeated. Invalid timestamps or checkpoints fail explicitly. **Start over** requires confirmation and keeps the previously published transcript until successful completion. Temporary exports require at least 20 MB free space.
+
+Manual check on iOS 27 / LiveContainer: inspect Russian and English readiness before granting permission; try denied/restricted legacy permission, then a supported installed SpeechAnalyzer model. Download a missing supported model explicitly, interrupt the download and refresh. In airplane mode transcribe a local recording longer than two minutes; stop during a later chunk, relaunch and resume. Check that saved phrases have correct timestamps and are not duplicated, and that old subtitles remain after a failed retry. Recheck a silent recording and video without audio. Test real model download, recognition quality, background interruption and permissions on the physical device; simulator fixtures do not prove those capabilities.
+
 ## Known gaps
 
-Apple offline speech depends on installed language/system permission and may not work inside LiveContainer; no WhisperKit bundled. Processing needs the app foreground; moving to the background cancels the current operation. Completed speech chunks remain resumable after relaunch; the unfinished chunk is repeated. Audio gaps and interrupted speech requests still depend on Apple's engine. No speaker diarization, semantic search, automatic media download, translation or guaranteed speed benchmarks.
+Apple offline speech depends on device/language support and installed models, and may not work inside LiveContainer; the legacy engine also requires recognition permission. No WhisperKit is bundled. Processing needs the app foreground; moving to the background cancels the current operation. Completed speech chunks remain resumable after relaunch; the unfinished chunk is repeated. Audio gaps and interrupted speech requests still depend on Apple's engine. No speaker diarization, semantic search, automatic media download, translation or guaranteed speed benchmarks.
 
 ## Windows 11 Quick Start
 

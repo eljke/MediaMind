@@ -19,8 +19,13 @@ final class MediaViewModel: ObservableObject {
     @Published var overview: [UUID: MediaOverview] = [:]
     @Published var bookmarkRevision = 0
     @Published var deletedBookmark: MediaBookmark?
+    @Published var speechReadiness: SpeechReadiness?
+    @Published var checkingSpeech = false
     @Published var language = UserDefaults.standard.string(forKey: "speechLanguage") ?? "ru-RU" {
-        didSet { UserDefaults.standard.set(language, forKey: "speechLanguage") }
+        didSet {
+            UserDefaults.standard.set(language, forKey: "speechLanguage")
+            speechReadiness = nil; speechCheckGeneration += 1; checkingSpeech = false
+        }
     }
     private var db: MediaRepository?
     private let root: URL
@@ -28,6 +33,8 @@ final class MediaViewModel: ObservableObject {
     private let speech: TranscriptionService
     private var operation: Task<Void, Never>?
     private var reloadGeneration = 0
+    private var speechCheckGeneration = 0
+    private var operationGeneration = 0
 
     convenience init(root: URL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("MediaMind", isDirectory: true)) {
         self.init(root: root, speech: AppleOfflineSpeech())
@@ -44,6 +51,47 @@ final class MediaViewModel: ObservableObject {
     }
 
     func location(_ item: MediaItem) -> URL { root.appendingPathComponent("files", isDirectory: true).appendingPathComponent(item.fileName) }
+
+    var canTranscribe: Bool { speechReadiness?.engine != nil || speechReadiness?.issue == .permissionRequired }
+
+    func checkSpeech() async {
+        speechCheckGeneration += 1
+        let generation = speechCheckGeneration
+        let selected = language
+        checkingSpeech = true
+        let status = await speech.readiness(language: selected)
+        guard generation == speechCheckGeneration, selected == language else { return }
+        speechReadiness = status
+        checkingSpeech = false
+    }
+
+    func requestSpeechPermission() {
+        perform("Разрешение на распознавание") { [self] in
+            await speech.requestPermission()
+            try Task.checkCancellation()
+            await checkSpeech()
+            return "Проверка разрешения завершена"
+        }
+    }
+
+    func installSpeechModel() {
+        let selected = language
+        perform("Загрузка офлайн-модели", cancelled: "Ожидание загрузки остановлено. iOS может продолжить загрузку модели; обнови проверку позже.") { [self] in
+            let generation = operationGeneration
+            do {
+                try await speech.installModel(language: selected) { [weak self] value in
+                    guard let self, self.busy, self.operationGeneration == generation else { return }
+                    self.progress = value.isFinite ? min(1, max(0, value)) : 0
+                }
+                try Task.checkCancellation()
+                await checkSpeech()
+                return "Офлайн-модель установлена"
+            } catch {
+                await checkSpeech()
+                throw error
+            }
+        }
+    }
 
     func reload() async {
         reloadGeneration += 1
@@ -158,7 +206,7 @@ final class MediaViewModel: ObservableObject {
     func transcribe(_ item: MediaItem, restart: Bool = false) {
         guard let db else { return }
         let selectedLanguage = language
-        perform("Распознавание речи", item: item.id) { [self] in
+        perform("Распознавание речи", item: item.id, cancelled: "Распознавание остановлено. Завершённые фрагменты сохранены; можно продолжить позже.") { [self] in
             do {
                 let saved = try await db.checkpoint(for: item.id)
                 let initial: TranscriptionCheckpoint
@@ -281,8 +329,9 @@ final class MediaViewModel: ObservableObject {
         } catch { errorMessage = error.localizedDescription; return nil }
     }
 
-    private func perform(_ title: String, item: UUID? = nil, action: @escaping () async throws -> String) {
+    private func perform(_ title: String, item: UUID? = nil, cancelled: String = "Действие остановлено.", action: @escaping () async throws -> String) {
         guard !busy else { return }
+        operationGeneration += 1
         busy = true; progress = 0; operationTitle = title; operationItemID = item; notice = nil
         UIApplication.shared.isIdleTimerDisabled = true
         operation = Task {
@@ -291,7 +340,7 @@ final class MediaViewModel: ObservableObject {
                 UIApplication.shared.isIdleTimerDisabled = false
             }
             do { notice = try await action() }
-            catch is CancellationError { notice = "Остановлено. Завершённые фрагменты распознавания сохранены." }
+            catch is CancellationError { notice = cancelled }
             catch { errorMessage = error.localizedDescription }
             await reload()
         }

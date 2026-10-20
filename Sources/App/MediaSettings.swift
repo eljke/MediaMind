@@ -15,8 +15,7 @@ struct MediaSettings: View {
                         Text("Русский").tag("ru-RU")
                         Text("English").tag("en-US")
                     }.disabled(vm.busy)
-                    Text("Apple Speech требует разрешения и доступной офлайн-модели языка. В LiveContainer доступность нужно проверить на устройстве. Импорт SRT/VTT работает независимо.")
-                        .font(.footnote).foregroundStyle(.secondary)
+                    SpeechReadinessView(expanded: true)
                     Text("Прогресс сохраняется каждые 45 секунд. При уходе в фон обработка останавливается; продолжить можно на экране записи. Во время работы экран остаётся включённым.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
