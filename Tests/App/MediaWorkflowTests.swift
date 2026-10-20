@@ -1,6 +1,7 @@
 #if canImport(UIKit) && !SWIFT_PACKAGE
 import XCTest
 import AVFoundation
+import SwiftUI
 @testable import MediaMind
 
 @MainActor
@@ -134,6 +135,46 @@ final class MediaWorkflowTests: XCTestCase {
         for write in writes { await write.value }
         XCTAssertTrue(vm.continuing.isEmpty)
         XCTAssertNil(playback.player)
+    }
+
+    func testLibraryPresentation() async throws {
+        let root = try temporaryFolder()
+        let folder = root.appendingPathComponent("files")
+        try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
+        _ = try audio(at:folder.appendingPathComponent("preview.wav"))
+        let repo = try MediaRepository(url:root.appendingPathComponent("library.sqlite"))
+        let ready = MediaItem(title:"Лекция: архитектура приложений",fileName:"preview.wav",duration:8)
+        let paused = MediaItem(title:"Интервью с командой",fileName:"interview.mov",duration:120)
+        let failed = MediaItem(title:"Обсуждение проекта",fileName:"meeting.m4a",duration:180)
+        for item in [ready,paused,failed] { try await repo.save(item) }
+        try await repo.replaceSegments([SpeechSegment(start:0,end:4,text:"Важный принцип: состояние принадлежит своему компоненту.")],for:ready.id)
+        try await repo.saveCheckpoint(TranscriptionCheckpoint(language:"ru-RU",nextOffset:45),for:paused.id)
+        try await repo.recordTranscriptionFailure("Офлайн-модель языка недоступна",for:failed.id)
+        try await repo.savePlayback(PlaybackPosition(position:2.5),for:ready.id)
+        try await repo.saveBookmark(MediaBookmark(mediaID:ready.id,position:2,note:"Главный тезис — вернуться к этому определению"))
+        let vm = MediaViewModel(root:root)
+        await vm.reload()
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let previous = scene.windows.first(where: { $0.isKeyWindow })
+        let window = UIWindow(windowScene:scene)
+        window.frame = scene.coordinateSpace.bounds
+        defer { window.isHidden = true; window.rootViewController = nil; previous?.makeKey() }
+        window.rootViewController = UIHostingController(rootView:MediaRoot().environmentObject(vm))
+        window.makeKeyAndVisible()
+        try await Task.sleep(for:.milliseconds(500))
+        attach(window,name:"Library")
+        window.rootViewController = UIHostingController(rootView:NavigationStack { MediaDetail(item:ready) }.environmentObject(vm))
+        try await Task.sleep(for:.milliseconds(500))
+        attach(window,name:"Bookmarks")
+    }
+
+    private func attach(_ window: UIWindow, name: String) {
+        window.layoutIfNeeded()
+        let image = UIGraphicsImageRenderer(bounds:window.bounds).image { _ in window.drawHierarchy(in:window.bounds,afterScreenUpdates:true) }
+        let attachment = XCTAttachment(image:image)
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 
     private func waitUntil(_ condition: () -> Bool) async throws {
