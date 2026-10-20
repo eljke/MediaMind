@@ -21,7 +21,7 @@ final class MediaPlayback: ObservableObject {
         return seconds.isFinite ? min(duration, max(0, seconds)) : position
     }
 
-    deinit {
+    isolated deinit {
         if let observer { player?.removeTimeObserver(observer) }
         statusObserver?.invalidate()
         if let endObserver { NotificationCenter.default.removeObserver(endObserver) }
