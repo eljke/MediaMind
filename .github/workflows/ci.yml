@@ -51,7 +51,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build unsigned iOS app on arm64 Mac
         run: bash tools/build_ipa_macos.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: debug-ipa-${{ github.sha }}
           path: |

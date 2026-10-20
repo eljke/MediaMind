@@ -60,7 +60,7 @@ jobs:
         run: swift test -j 2
       - name: Build and verify unsigned iPhone IPA
         run: bash tools/build_ipa_macos.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release-${{ needs.prepare.outputs.version }}
           path: |
