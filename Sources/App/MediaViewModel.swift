@@ -1,5 +1,6 @@
 import SwiftUI
 import AVFoundation
+import PhotosUI
 
 @MainActor
 final class MediaViewModel: ObservableObject {
@@ -24,8 +25,8 @@ final class MediaViewModel: ObservableObject {
     private let speech: TranscriptionService = AppleOfflineSpeech()
     private var operation: Task<Void, Never>?
 
-    init() {
-        root = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("MediaMind", isDirectory: true)
+    init(root: URL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("MediaMind", isDirectory: true)) {
+        self.root = root
     }
 
     func location(_ item: MediaItem) -> URL { root.appendingPathComponent("files", isDirectory: true).appendingPathComponent(item.fileName) }
@@ -41,27 +42,43 @@ final class MediaViewModel: ObservableObject {
     }
 
     func importMedia(_ source: URL) {
-        guard let db else { return }
+        guard ready else { return }
         perform("Импорт файла") { [self] in
-            let granted = source.startAccessingSecurityScopedResource()
-            defer { if granted { source.stopAccessingSecurityScopedResource() } }
-            let destination = try await files.copyMedia(from: source, to: root.appendingPathComponent("files")) { [weak self] value in
-                Task { @MainActor in self?.progress = value }
-            }
-            do {
-                let asset = AVURLAsset(url: destination)
-                guard try await asset.load(.isPlayable) else { throw MediaFileImport.ImportError.unreadable }
-                let seconds = try await asset.load(.duration).seconds
-                guard seconds.isFinite && seconds > 0 else { throw SpeechServiceError.badDuration }
-                try Task.checkCancellation()
-                try await db.save(MediaItem(title: source.deletingPathExtension().lastPathComponent, fileName: destination.lastPathComponent, duration: seconds))
-            } catch {
-                try? FileManager.default.removeItem(at: destination)
-                throw error
-            }
-            await reload()
+            try await storeMedia(source)
             return "Запись добавлена в библиотеку"
         }
+    }
+
+    func importVideo(_ selection: PhotosPickerItem) {
+        guard ready else { return }
+        perform("Импорт видео из Фото") { [self] in
+            guard let video = try await selection.loadTransferable(type: ImportedVideo.self) else { throw MediaFileImport.ImportError.unreadable }
+            defer { try? FileManager.default.removeItem(at: video.file) }
+            try Task.checkCancellation()
+            try await storeMedia(video.file, title: video.title)
+            return "Видео добавлено в библиотеку"
+        }
+    }
+
+    func storeMedia(_ source: URL, title: String? = nil) async throws {
+        guard let db else { throw MediaRepository.Error.open }
+        let granted = source.startAccessingSecurityScopedResource()
+        defer { if granted { source.stopAccessingSecurityScopedResource() } }
+        let destination = try await files.copyMedia(from: source, to: root.appendingPathComponent("files")) { [weak self] value in
+            Task { @MainActor in self?.progress = value }
+        }
+        do {
+            let asset = AVURLAsset(url: destination)
+            guard try await asset.load(.isPlayable) else { throw MediaFileImport.ImportError.unplayable }
+            let seconds = try await asset.load(.duration).seconds
+            guard seconds.isFinite && seconds > 0 else { throw SpeechServiceError.badDuration }
+            try Task.checkCancellation()
+            try await db.save(MediaItem(title: title ?? source.deletingPathExtension().lastPathComponent, fileName: destination.lastPathComponent, duration: seconds))
+        } catch {
+            try? FileManager.default.removeItem(at: destination)
+            throw error
+        }
+        await reload()
     }
 
     func importSubtitle(_ source: URL, for item: MediaItem) {

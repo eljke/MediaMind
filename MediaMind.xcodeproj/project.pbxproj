@@ -4,6 +4,16 @@
 	classes = {};
 	objectVersion = 56;
 	objects = {
+		5DF89CAD6BEFAF2312D1F496 /* ImportedVideo.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "ImportedVideo.swift";
+			sourceTree = "<group>";
+		};
+		A8C3D1F77FC93B336FC7BB91 /* ImportedVideo.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 5DF89CAD6BEFAF2312D1F496 /* ImportedVideo.swift */;
+		};
 		3103D4DF035C61748FC58918 /* MediaDetail.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -140,6 +150,7 @@
 		E280E64ECD4C33DECC5399A2 /* App */ = {
 			isa = PBXGroup;
 			children = (
+				5DF89CAD6BEFAF2312D1F496 /* ImportedVideo.swift */,
 				3103D4DF035C61748FC58918 /* MediaDetail.swift */,
 				DFB6F8B93A008A3B04F0CB4D /* MediaFileImport.swift */,
 				AB61A18DBB23A8BA0605D4E2 /* MediaLibrary.swift */,
@@ -176,6 +187,7 @@
 			isa = PBXGroup;
 			children = (
 				16B4C84DAB2759B732812D69 /* Sources */,
+				006CEFA9887FCF0EBE63A14D /* tests */,
 				C568178CE52C0F67C00ABE3D /* Assets.xcassets */,
 				F89A7602772BA173C7C7A124 /* products */,
 			);
@@ -185,6 +197,7 @@
 			isa = PBXGroup;
 			children = (
 				EC315E7F1C2FE64DEDB8A5B4 /* product */,
+				DF84951AEAFE8E913352D2CA /* tests */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -193,6 +206,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A8C3D1F77FC93B336FC7BB91 /* ImportedVideo.swift */,
 				B2FF1B503268D7759C574743 /* MediaDetail.swift */,
 				A70135CA3883ADAE8114462A /* MediaFileImport.swift */,
 				BFD918A9F1ED3D65118DC5FC /* MediaLibrary.swift */,
@@ -233,6 +247,7 @@
 				TARGETED_DEVICE_FAMILY = "1,2";
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				ENABLE_TESTABILITY = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf-with-dsym;
 			};
 			name = Debug;
@@ -269,6 +284,7 @@
 				TARGETED_DEVICE_FAMILY = "1,2";
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				ENABLE_TESTABILITY = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf-with-dsym;
 			};
 			name = Release;
@@ -326,6 +342,105 @@
 			productName = MediaMind;
 			productType = "com.apple.product-type.application";
 		};
+		1637905EF12812B766D990F7 /* MediaImportTests.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "MediaImportTests.swift";
+			sourceTree = "<group>";
+		};
+		59E385887E30F6452901CDBF /* MediaImportTests.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 1637905EF12812B766D990F7 /* MediaImportTests.swift */;
+		};
+		006CEFA9887FCF0EBE63A14D /* App tests */ = {
+			isa = PBXGroup;
+			children = (
+				1637905EF12812B766D990F7 /* MediaImportTests.swift */,
+			);
+			path = Tests/App;
+			sourceTree = "<group>";
+		};
+		DF84951AEAFE8E913352D2CA /* App tests */ = {
+			isa = PBXFileReference;
+			explicitFileType = wrapper.cfbundle;
+			includeInIndex = 0;
+			path = MediaMindAppTests.xctest;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		C64F219D2E87CCE9FC7A5958 /* App test sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				59E385887E30F6452901CDBF /* MediaImportTests.swift */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AD24BA1B8B68B63837F998EE /* App tests Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = MediaMindAppTests;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.personal.mediamind.tests;
+				GENERATE_INFOPLIST_FILE = YES;
+				SWIFT_VERSION = 5.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MediaMind.app/MediaMind";
+				BUNDLE_LOADER = "$(TEST_HOST)";
+			};
+			name = Debug;
+		};
+		21C67CC839031E0CB53DE187 /* App tests Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = MediaMindAppTests;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.personal.mediamind.tests;
+				GENERATE_INFOPLIST_FILE = YES;
+				SWIFT_VERSION = 5.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MediaMind.app/MediaMind";
+				BUNDLE_LOADER = "$(TEST_HOST)";
+			};
+			name = Release;
+		};
+		756C6612347AE83503390C46 /* App test configs */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AD24BA1B8B68B63837F998EE /* Debug */,
+				21C67CC839031E0CB53DE187 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		C1CF4D1DB5977E57AA08B290 /* Test host proxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F1E2C8199AB64485C0F07057 /* project */;
+			proxyType = 1;
+			remoteGlobalIDString = C3BB9BF570ED3C7BF9AE1ACA;
+			remoteInfo = MediaMind;
+		};
+		BC50E309D16A31D38184473F /* Test host */ = {
+			isa = PBXTargetDependency;
+			target = C3BB9BF570ED3C7BF9AE1ACA /* target */;
+			targetProxy = C1CF4D1DB5977E57AA08B290 /* app */;
+		};
+		1334B2B8CDB76544DE48B8F3 /* App tests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 756C6612347AE83503390C46 /* tests */;
+			buildPhases = (
+				C64F219D2E87CCE9FC7A5958 /* tests */,
+			);
+			buildRules = ();
+			dependencies = (
+				BC50E309D16A31D38184473F /* app */,
+			);
+			name = MediaMindAppTests;
+			productName = MediaMindAppTests;
+			productReference = DF84951AEAFE8E913352D2CA /* tests */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		F1E2C8199AB64485C0F07057 /* Project */ = {
 			isa = PBXProject;
 			buildConfigurationList = DAC534730407E433B88B3775 /* project */;
@@ -339,6 +454,7 @@
 			projectRoot = "";
 			targets = (
 				C3BB9BF570ED3C7BF9AE1ACA /* target */,
+				1334B2B8CDB76544DE48B8F3 /* tests */,
 			);
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;

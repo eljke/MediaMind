@@ -1,9 +1,13 @@
 import SwiftUI
 import UniformTypeIdentifiers
+import PhotosUI
 
 struct MediaLibrary: View {
     @EnvironmentObject private var vm: MediaViewModel
     @State private var picker = false
+    @State private var sourcePicker = false
+    @State private var photoPicker = false
+    @State private var selectedVideo: PhotosPickerItem?
     @State private var renaming: MediaItem?
     @State private var title = ""
     var body: some View {
@@ -21,7 +25,7 @@ struct MediaLibrary: View {
                     } description: {
                         Text("Добавь аудио или видео, затем субтитры SRT/VTT или офлайн-расшифровку. Файлы останутся на устройстве.")
                     } actions: {
-                        Button("Добавить запись") { picker = true }.buttonStyle(.borderedProminent).disabled(vm.busy)
+                        Button("Добавить запись") { sourcePicker = true }.buttonStyle(.borderedProminent).disabled(vm.busy)
                     }
                 } else {
                     List {
@@ -54,10 +58,25 @@ struct MediaLibrary: View {
             .navigationTitle("MediaMind")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button { picker = true } label: { Label("Добавить запись", systemImage: "plus.circle.fill") }.disabled(vm.busy || !vm.ready)
+                    Button { sourcePicker = true } label: { Label("Добавить запись", systemImage: "plus.circle.fill") }.disabled(vm.busy || !vm.ready)
                 }
             }
-            .fileImporter(isPresented: $picker, allowedContentTypes: [.audio, .movie], allowsMultipleSelection: false) { result in
+            .confirmationDialog("Откуда добавить запись?", isPresented: $sourcePicker, titleVisibility: .visible) {
+                Button("Видео из Фото") { photoPicker = true }
+                Button("Аудио или видео из Файлов") { picker = true }
+                Button("Отмена", role: .cancel) {}
+            } message: {
+                Text("MOV, MP4, M4V и аудио до 2 ГБ. Формат проверяется после выбора.")
+            }
+            .photosPicker(isPresented: $photoPicker, selection: $selectedVideo, matching: .videos, preferredItemEncoding: .current)
+            .onChange(of: selectedVideo) { _, selection in
+                guard let selection else { return }
+                photoPicker = false
+                vm.importVideo(selection)
+                selectedVideo = nil
+            }
+            // File providers may expose a playable MOV as generic data rather than a movie UTI.
+            .fileImporter(isPresented: $picker, allowedContentTypes: [.data], allowsMultipleSelection: false) { result in
                 switch result {
                 case .success(let urls): if let url = urls.first { vm.importMedia(url) }
                 case .failure(let error): vm.errorMessage = error.localizedDescription

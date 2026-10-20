@@ -2,7 +2,7 @@ import Foundation
 
 actor MediaFileImport {
     enum ImportError: LocalizedError {
-        case unsupported, tooLarge, noSpace, unreadable, noCues
+        case unsupported, tooLarge, noSpace, unreadable, noCues, unplayable
         var errorDescription: String? {
             switch self {
             case .unsupported: return "Выбери аудио или видео: MP3, M4A, MP4, MOV, WAV, AAC, CAF, AIFF, M4V."
@@ -10,6 +10,7 @@ actor MediaFileImport {
             case .noSpace: return "Недостаточно свободного места для копии файла."
             case .unreadable: return "Не удалось прочитать файл. Для субтитров используй UTF-8 или UTF-16."
             case .noCues: return "В файле нет читаемых временных отметок SRT/VTT."
+            case .unplayable: return "iOS не может воспроизвести этот файл. Расширение MOV/MP4 не гарантирует поддержку кодека или целостность видео."
             }
         }
     }

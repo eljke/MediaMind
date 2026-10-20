@@ -39,7 +39,7 @@ jobs:
       - name: Validate Xcode project and Info.plist generation
         run: |
           python3 tools/generate_xcodeproj.py
-          git diff --exit-code -- '*.pbxproj'
+          git diff --exit-code -- '*.pbxproj' '*.xcscheme'
           python3 - <<'PY'
           import plistlib
           from pathlib import Path
