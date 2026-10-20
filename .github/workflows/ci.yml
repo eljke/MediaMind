@@ -22,7 +22,10 @@ jobs:
       - name: Test release tooling
         run: python3 tools/test_release.py
       - name: Swift Package tests
-        run: swift test -j 2
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y libsqlite3-dev
+          swift test -j 2
       - name: Validate Conventional Commits on PR
         if: github.event_name == 'pull_request'
         run: |

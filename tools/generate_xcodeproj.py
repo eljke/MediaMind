@@ -79,5 +79,5 @@ proj='// !$*UTF8*$!\n{\n\tarchiveVersion = 1;\n\tclasses = {};\n\tobjectVersion 
 proj+=''.join(objects)+'\t};\n'+f'\trootObject = {ref("project")};\n'+'}\n'
 out=BASE/(NAME+'.xcodeproj')/'project.pbxproj'
 out.parent.mkdir(exist_ok=True)
-out.write_text(proj)
+out.write_text(proj, newline='\n')
 print(f'Generated {out} with {len(FILES)} Swift files: v{VERSION["version"]} ({VERSION["build"]})')

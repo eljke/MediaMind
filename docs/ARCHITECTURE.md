@@ -32,6 +32,14 @@ Assets.xcassets/   app icon and other static assets
 
 ## Continuous delivery contract
 
+### Local data lifecycle
+
+SQLite schema version 1 adds `media_trash` and `transcription_checkpoints` without rewriting existing media or segments. The migration is transactional and additive: a v0 database upgrades in place, and older builds can still read the original tables. Before manually downgrading, export important transcripts; older builds do not understand trash or pending checkpoints. Media metadata uses an UPSERT to preserve child transcripts. Subtitle replacement and checkpoint removal commit in the same transaction, so a failed replacement restores the previous transcript and pending job.
+
+Speech checkpoints store the selected language, next chunk offset and completed phrases independently of the published transcript. Importing subtitles clears the pending job; speech publishes its staged phrases only after successful completion. The immutable local media copy is the checkpoint's source. Moving a recording to trash hides it from library/search but keeps the file, transcript and checkpoint until explicit permanent deletion. Search normalizes Unicode in SQLite using the same rule as the in-recording filter, while binding and escaping the query literally.
+
+`MediaFileImport` performs bounded stream copies and subtitle parsing away from the main actor. `MediaViewModel` permits one import/transcription operation at a time and cancels it on background entry. Apple recognition retains its task, serializes completion on the main actor, and has cancellation and a 90-second per-chunk response timeout. `MediaPlayback` owns the player/time observer and saves position per recording.
+
 - Work on `feature/*` / `fix/*`. AI coding agent creates commits only when it has actual working tree and Git permissions; never hallucinate commits or GitHub releases.
 - `feat:` -> SemVer minor; `fix:` / `perf:` -> patch; `!` or `BREAKING CHANGE:` -> major; non-release types do not bump.
 - CI runs core tests plus unsigned arm64 iOS build for changes; developers must not declare a build successful unless the Actions job passed.

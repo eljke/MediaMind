@@ -5,7 +5,7 @@ let package = Package(
     platforms: [.iOS(.v17)],
     products: [.library(name: "MediaMindCore", targets: ["MediaMindCore"])],
     targets: [
-        .systemLibrary(name: "CSQLite", path: "Modules/CSQLite"),
+        .systemLibrary(name: "CSQLite", path: "Modules/CSQLite", pkgConfig: "sqlite3", providers: [.apt(["libsqlite3-dev"]), .brew(["sqlite3"])]),
         .target(name: "MediaMindCore", dependencies: ["CSQLite"], path: "Sources/Core"),
         .testTarget(name: "MediaMindTests", dependencies: ["MediaMindCore"], path: "Tests")
     ]
