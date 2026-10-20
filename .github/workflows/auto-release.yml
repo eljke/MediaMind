@@ -23,7 +23,9 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
       - name: Test release tooling
-        run: python3 tools/test_release.py
+        run: |
+          python3 tools/test_release.py
+          python3 tools/test_ipa.py
       - name: Decide SemVer from git history
         id: plan
         run: python3 tools/release.py plan --output "$GITHUB_OUTPUT"

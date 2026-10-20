@@ -4,6 +4,36 @@
 	classes = {};
 	objectVersion = 56;
 	objects = {
+		3103D4DF035C61748FC58918 /* MediaDetail.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "MediaDetail.swift";
+			sourceTree = "<group>";
+		};
+		B2FF1B503268D7759C574743 /* MediaDetail.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 3103D4DF035C61748FC58918 /* MediaDetail.swift */;
+		};
+		DFB6F8B93A008A3B04F0CB4D /* MediaFileImport.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "MediaFileImport.swift";
+			sourceTree = "<group>";
+		};
+		A70135CA3883ADAE8114462A /* MediaFileImport.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = DFB6F8B93A008A3B04F0CB4D /* MediaFileImport.swift */;
+		};
+		AB61A18DBB23A8BA0605D4E2 /* MediaLibrary.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "MediaLibrary.swift";
+			sourceTree = "<group>";
+		};
+		BFD918A9F1ED3D65118DC5FC /* MediaLibrary.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = AB61A18DBB23A8BA0605D4E2 /* MediaLibrary.swift */;
+		};
 		C8600A227CE34FB172F6FCFE /* MediaMindApp.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -13,6 +43,46 @@
 		3E5B6BEA58B905F0DE0D7A85 /* MediaMindApp.swift in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = C8600A227CE34FB172F6FCFE /* MediaMindApp.swift */;
+		};
+		D79534E6EB21C7778BD76539 /* MediaPlayback.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "MediaPlayback.swift";
+			sourceTree = "<group>";
+		};
+		727345D0EF3FB536FF4ED5CD /* MediaPlayback.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = D79534E6EB21C7778BD76539 /* MediaPlayback.swift */;
+		};
+		552C3398B2392558121F1175 /* MediaSearchView.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "MediaSearchView.swift";
+			sourceTree = "<group>";
+		};
+		FD852BF1B93CDF15C2EBC30F /* MediaSearchView.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 552C3398B2392558121F1175 /* MediaSearchView.swift */;
+		};
+		36332A74663A63EB4A9B5CDE /* MediaSettings.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "MediaSettings.swift";
+			sourceTree = "<group>";
+		};
+		359600A6F2F6523A4475EA01 /* MediaSettings.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 36332A74663A63EB4A9B5CDE /* MediaSettings.swift */;
+		};
+		89E29D8BBC96DD966375CD9F /* MediaViewModel.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "MediaViewModel.swift";
+			sourceTree = "<group>";
+		};
+		7C03CD3A0A25577A1358BAF6 /* MediaViewModel.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 89E29D8BBC96DD966375CD9F /* MediaViewModel.swift */;
 		};
 		4300C3522681025181F95007 /* OfflineSpeechService.swift */ = {
 			isa = PBXFileReference;
@@ -70,7 +140,14 @@
 		E280E64ECD4C33DECC5399A2 /* App */ = {
 			isa = PBXGroup;
 			children = (
+				3103D4DF035C61748FC58918 /* MediaDetail.swift */,
+				DFB6F8B93A008A3B04F0CB4D /* MediaFileImport.swift */,
+				AB61A18DBB23A8BA0605D4E2 /* MediaLibrary.swift */,
 				C8600A227CE34FB172F6FCFE /* MediaMindApp.swift */,
+				D79534E6EB21C7778BD76539 /* MediaPlayback.swift */,
+				552C3398B2392558121F1175 /* MediaSearchView.swift */,
+				36332A74663A63EB4A9B5CDE /* MediaSettings.swift */,
+				89E29D8BBC96DD966375CD9F /* MediaViewModel.swift */,
 				4300C3522681025181F95007 /* OfflineSpeechService.swift */,
 				CFB0444CCCFE8477E0B90CA3 /* Info.plist */,
 			);
@@ -116,7 +193,14 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B2FF1B503268D7759C574743 /* MediaDetail.swift */,
+				A70135CA3883ADAE8114462A /* MediaFileImport.swift */,
+				BFD918A9F1ED3D65118DC5FC /* MediaLibrary.swift */,
 				3E5B6BEA58B905F0DE0D7A85 /* MediaMindApp.swift */,
+				727345D0EF3FB536FF4ED5CD /* MediaPlayback.swift */,
+				FD852BF1B93CDF15C2EBC30F /* MediaSearchView.swift */,
+				359600A6F2F6523A4475EA01 /* MediaSettings.swift */,
+				7C03CD3A0A25577A1358BAF6 /* MediaViewModel.swift */,
 				E0833B1C361BBC771A1DDE51 /* OfflineSpeechService.swift */,
 				9B72F6FD11949C52F9ADD757 /* MediaCore.swift */,
 				5F35463707DAF988DE9C573A /* MediaRepository.swift */,

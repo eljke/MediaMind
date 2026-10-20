@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -36,20 +37,20 @@ class ReleaseTests(unittest.TestCase):
 
     def test_minor_then_prepare(self):
         self.commit('feat(search): allow Russian OCR','a')
-        result=self.call('python3','tools/release.py','plan')
+        result=self.call(sys.executable,'tools/release.py','plan')
         self.assertIn('minor 0.1.0 -> 0.2.0',result.stdout)
-        self.call('python3','tools/release.py','prepare','--version','0.2.0')
+        self.call(sys.executable,'tools/release.py','prepare','--version','0.2.0')
         self.assertEqual(json.loads((self.path/'Config/version.json').read_text()),{'version':'0.2.0','build':2})
         self.assertIn('feat(search): allow Russian OCR',(self.path/'CHANGELOG.md').read_text())
 
     def test_patch_and_none(self):
-        self.assertIn('none',(self.call('python3','tools/release.py','plan').stdout))
+        self.assertIn('none',(self.call(sys.executable,'tools/release.py','plan').stdout))
         self.commit('fix(db): handle unicode strings','b')
-        self.assertIn('patch 0.1.0 -> 0.1.1',(self.call('python3','tools/release.py','plan').stdout))
+        self.assertIn('patch 0.1.0 -> 0.1.1',(self.call(sys.executable,'tools/release.py','plan').stdout))
 
     def test_major_and_invalid_message(self):
         self.commit('feat(api)!: change stored data format','c')
-        self.assertIn('major 0.1.0 -> 1.0.0',(self.call('python3','tools/release.py','plan').stdout))
-        self.assertNotEqual(self.call('python3','tools/release.py','check-message','--message','random commit',ok=False).returncode,0)
+        self.assertIn('major 0.1.0 -> 1.0.0',(self.call(sys.executable,'tools/release.py','plan').stdout))
+        self.assertNotEqual(self.call(sys.executable,'tools/release.py','check-message','--message','random commit',ok=False).returncode,0)
 
 if __name__=='__main__': unittest.main()
