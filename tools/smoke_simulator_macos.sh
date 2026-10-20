@@ -35,7 +35,8 @@ PY
 xcrun simctl io "$device" screenshot build/smoke/library.png
 xcodebuild -project "$name.xcodeproj" -scheme "$name" -configuration Debug \
   -destination "platform=iOS Simulator,id=$device" -derivedDataPath build/Simulator \
-  -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO test > build/smoke/tests.log 2>&1 || {
+  -parallel-testing-enabled NO -resultBundlePath build/SimulatorTests.xcresult CODE_SIGNING_ALLOWED=NO test > build/smoke/tests.log 2>&1 || {
     tail -n 120 build/smoke/tests.log
     exit 1
   }
+xcrun xcresulttool export attachments --path build/SimulatorTests.xcresult --output-path build/smoke/previews

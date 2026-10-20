@@ -180,13 +180,13 @@ final class MediaTests: XCTestCase {
         var handle: OpaquePointer?
         XCTAssertEqual(sqlite3_open(path.path,&handle),SQLITE_OK)
         defer { sqlite3_close(handle) }
-        XCTAssertEqual(sqlite3_exec(handle,"PRAGMA user_version=2",nil,nil,nil),SQLITE_OK)
+        XCTAssertEqual(sqlite3_exec(handle,"PRAGMA user_version=3",nil,nil,nil),SQLITE_OK)
         XCTAssertThrowsError(try MediaRepository(url:path))
         var statement: OpaquePointer?
         XCTAssertEqual(sqlite3_prepare_v2(handle,"PRAGMA user_version",-1,&statement,nil),SQLITE_OK)
         defer { sqlite3_finalize(statement) }
         XCTAssertEqual(sqlite3_step(statement),SQLITE_ROW)
-        XCTAssertEqual(sqlite3_column_int(statement,0),2)
+        XCTAssertEqual(sqlite3_column_int(statement,0),3)
     }
     private func databaseURL() -> URL {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

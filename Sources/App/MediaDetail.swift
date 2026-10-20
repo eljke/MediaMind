@@ -4,6 +4,7 @@ import AVKit
 
 struct MediaDetail: View {
     @EnvironmentObject private var vm: MediaViewModel
+    @Environment(\.scenePhase) private var scenePhase
     let item: MediaItem
     var initialTime: Double? = nil
     @StateObject private var playback = MediaPlayback()
@@ -33,6 +34,10 @@ struct MediaDetail: View {
                         Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.secondary)
                     } else { ProgressView("Открытие записи").frame(maxWidth: .infinity, minHeight: 140) }
                     Text(title).font(.title2.bold()).textSelection(.enabled)
+                    MediaStatusLabel(status: vm.overview[item.id]?.transcript ?? .empty, activity: vm.operationItemID == item.id ? vm.operationTitle : nil)
+                    if case .failed(let message)? = vm.overview[item.id]?.transcript {
+                        Text(message).font(.footnote).foregroundStyle(.secondary).textSelection(.enabled)
+                    }
                     HStack {
                         Text("\(Self.time(playback.position)) / \(Self.time(item.duration))").font(.caption.monospacedDigit()).foregroundStyle(.secondary)
                         Spacer()
@@ -69,6 +74,7 @@ struct MediaDetail: View {
                             Text("При смене языка распознавание начнётся заново.").font(.footnote).foregroundStyle(.secondary)
                         }
                     }
+                    MediaBookmarks(item: item, canAdd: playback.player != nil, currentPosition: { playback.currentPosition }, seek: { playback.seek($0) })
                     if !segments.isEmpty {
                         HStack {
                             Text("Расшифровка · \(segments.count)").font(.headline)
@@ -113,8 +119,13 @@ struct MediaDetail: View {
         }
         .navigationTitle("Запись").navigationBarTitleDisplayMode(.inline)
         .searchable(text: $query, prompt: "Найти в этой записи")
-        .task { await playback.open(item, url: vm.location(item), initialTime: initialTime) }
+        .task {
+            await playback.open(item, url: vm.location(item), initialTime: initialTime, resumePosition: vm.overview[item.id]?.playback?.position ?? 0) { value in
+                Task { await vm.recordPlayback(value, for: item) }
+            }
+        }
         .onDisappear { playback.close() }
+        .onChange(of: scenePhase) { _, phase in if phase == .background { playback.pauseAndSave() } }
         .confirmationDialog("Заменить расшифровку?", isPresented: Binding(get: { confirmation != nil }, set: { if !$0 { confirmation = nil } }), titleVisibility: .visible, presenting: confirmation) { replacement in
             Button("Продолжить") {
                 if replacement == .subtitles { pickSubtitle = true }
