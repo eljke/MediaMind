@@ -42,13 +42,13 @@ struct MediaSettings: View {
                 }
             }
             .navigationTitle("Настройки")
-            .confirmationDialog("Удалить навсегда?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
+            .confirmationDialog("Удалить навсегда?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible, presenting: deleting) { item in
                 Button("Удалить файл и расшифровку", role: .destructive) {
-                    if let item = deleting { Task { await vm.removePermanently(item) } }
+                    Task { await vm.removePermanently(item) }
                     deleting = nil
                 }
                 Button("Отмена", role: .cancel) { deleting = nil }
-            } message: { Text("После этого восстановить запись из корзины будет невозможно.") }
+            } message: { _ in Text("После этого восстановить запись из корзины будет невозможно.") }
             .task { await vm.reload() }
         }
     }

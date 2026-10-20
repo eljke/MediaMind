@@ -15,7 +15,9 @@ final class MediaViewModel: ObservableObject {
     @Published var notice: String?
     @Published var ready = false
     @Published var revision = 0
-    @AppStorage("speechLanguage") var language = "ru-RU"
+    @Published var language = UserDefaults.standard.string(forKey: "speechLanguage") ?? "ru-RU" {
+        didSet { UserDefaults.standard.set(language, forKey: "speechLanguage") }
+    }
     private var db: MediaRepository?
     private let root: URL
     private let files = MediaFileImport()

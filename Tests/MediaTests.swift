@@ -1,6 +1,11 @@
 import Foundation
 import XCTest
 @testable import MediaMindCore
+#if canImport(SQLite3)
+import SQLite3
+#else
+import CSQLite
+#endif
 final class MediaTests: XCTestCase {
     func testSRT() {
         let srt="1\n00:00:01,000 --> 00:00:03,100\nПривет, мир\n\n2\n00:01:12,500 --> 00:01:14,000\nВторая строка\n"
@@ -98,7 +103,7 @@ final class MediaTests: XCTestCase {
     func testTrashAndRestore() async throws {
         let path = databaseURL()
         let repo = try MediaRepository(url:path)
-        let item = MediaItem(title:"D",fileName:"a")
+        let item = MediaItem(title:"D",fileName:"a",addedAt:Date(timeIntervalSince1970:1_700_000_000))
         let original = [SpeechSegment(start:0,end:1,text:"Remember")]
         try await repo.save(item)
         try await repo.replaceSegments(original,for:item.id)
@@ -148,6 +153,40 @@ final class MediaTests: XCTestCase {
         XCTAssertEqual(phrases.map(\.text),["Привет, мир!","Новая фраза","После паузы"])
         XCTAssertEqual(phrases.map(\.start),[0,1.1,5])
         XCTAssertEqual(phrases.map(\.end),[1,2,6])
+    }
+    func testLegacyMigration() async throws {
+        let path = databaseURL()
+        try FileManager.default.createDirectory(at:path.deletingLastPathComponent(),withIntermediateDirectories:true)
+        let itemID = UUID()
+        let segmentID = UUID()
+        var handle: OpaquePointer?
+        XCTAssertEqual(sqlite3_open(path.path,&handle),SQLITE_OK)
+        let schema = "CREATE TABLE media(id TEXT PRIMARY KEY,title TEXT NOT NULL,file TEXT NOT NULL,added REAL NOT NULL,duration REAL NOT NULL); CREATE TABLE segments(id TEXT PRIMARY KEY,media_id TEXT NOT NULL REFERENCES media(id) ON DELETE CASCADE,start REAL NOT NULL,finish REAL NOT NULL,body TEXT NOT NULL); INSERT INTO media VALUES('\(itemID)','Legacy','a.mp3',0,60); INSERT INTO segments VALUES('\(segmentID)','\(itemID)',1,2,'Старые субтитры');"
+        XCTAssertEqual(sqlite3_exec(handle,schema,nil,nil,nil),SQLITE_OK)
+        sqlite3_close(handle)
+        let repo = try MediaRepository(url:path)
+        let original = try await repo.segments(for:itemID)
+        XCTAssertEqual(original.map(\.text),["Старые субтитры"])
+        try await repo.trash(itemID)
+        let trash = try await repo.trashed()
+        XCTAssertEqual(trash.first?.title,"Legacy")
+        try await repo.restore(itemID)
+        let hits = try await repo.search("СТАРЫЕ")
+        XCTAssertEqual(hits.count,1)
+    }
+    func testNewerSchemaIsPreserved() throws {
+        let path = databaseURL()
+        try FileManager.default.createDirectory(at:path.deletingLastPathComponent(),withIntermediateDirectories:true)
+        var handle: OpaquePointer?
+        XCTAssertEqual(sqlite3_open(path.path,&handle),SQLITE_OK)
+        defer { sqlite3_close(handle) }
+        XCTAssertEqual(sqlite3_exec(handle,"PRAGMA user_version=2",nil,nil,nil),SQLITE_OK)
+        XCTAssertThrowsError(try MediaRepository(url:path))
+        var statement: OpaquePointer?
+        XCTAssertEqual(sqlite3_prepare_v2(handle,"PRAGMA user_version",-1,&statement,nil),SQLITE_OK)
+        defer { sqlite3_finalize(statement) }
+        XCTAssertEqual(sqlite3_step(statement),SQLITE_ROW)
+        XCTAssertEqual(sqlite3_column_int(statement,0),2)
     }
     private func databaseURL() -> URL {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

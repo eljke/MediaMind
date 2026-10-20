@@ -9,12 +9,13 @@ private let sqliteTransient = unsafeBitCast(-1, to: sqlite3_destructor_type.self
 public actor MediaRepository {
     private var db: OpaquePointer?
     public enum Error: LocalizedError {
-        case open, sql, invalidSegment
+        case open, sql, invalidSegment, newerSchema
         public var errorDescription: String? {
             switch self {
             case .open: return "Не удалось открыть локальную библиотеку."
             case .sql: return "Не удалось прочитать или сохранить библиотеку."
             case .invalidSegment: return "В расшифровке недопустимые временные отметки."
+            case .newerSchema: return "Библиотека создана более новой версией приложения. Обнови MediaMind."
             }
         }
     }
@@ -25,6 +26,19 @@ public actor MediaRepository {
             throw Error.open
         }
         sqlite3_busy_timeout(db, 5000)
+        var versionStatement: OpaquePointer?
+        guard sqlite3_prepare_v2(db,"PRAGMA user_version",-1,&versionStatement,nil) == SQLITE_OK,
+              sqlite3_step(versionStatement) == SQLITE_ROW else {
+            sqlite3_finalize(versionStatement)
+            sqlite3_close(db)
+            throw Error.sql
+        }
+        let version = sqlite3_column_int(versionStatement,0)
+        sqlite3_finalize(versionStatement)
+        guard version <= 1 else {
+            sqlite3_close(db)
+            throw Error.newerSchema
+        }
         sqlite3_create_function_v2(db, "media_normalized", 1, SQLITE_UTF8 | SQLITE_DETERMINISTIC, nil, { context, _, values in
             guard let value = values?[0], let text = sqlite3_value_text(value) else {
                 sqlite3_result_null(context); return
@@ -35,8 +49,10 @@ public actor MediaRepository {
         let schema = "PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; CREATE TABLE IF NOT EXISTS media(id TEXT PRIMARY KEY,title TEXT NOT NULL,file TEXT NOT NULL,added REAL NOT NULL,duration REAL NOT NULL); CREATE TABLE IF NOT EXISTS segments(id TEXT PRIMARY KEY,media_id TEXT NOT NULL REFERENCES media(id) ON DELETE CASCADE,start REAL NOT NULL,finish REAL NOT NULL,body TEXT NOT NULL); CREATE INDEX IF NOT EXISTS segment_search ON segments(media_id,start);"
         // Additive v1 migration: existing media/segments remain readable by v0 builds.
         let migration = "BEGIN IMMEDIATE; CREATE TABLE IF NOT EXISTS transcription_checkpoints(media_id TEXT PRIMARY KEY REFERENCES media(id) ON DELETE CASCADE,payload TEXT NOT NULL); CREATE TABLE IF NOT EXISTS media_trash(media_id TEXT PRIMARY KEY REFERENCES media(id) ON DELETE CASCADE,deleted REAL NOT NULL); PRAGMA user_version=1; COMMIT;"
-        guard sqlite3_exec(db,schema,nil,nil,nil) == SQLITE_OK,
-              sqlite3_exec(db,migration,nil,nil,nil) == SQLITE_OK else {
+        let schemaStatus = sqlite3_exec(db,schema,nil,nil,nil)
+        var migrationStatus = SQLITE_OK
+        if schemaStatus == SQLITE_OK && version == 0 { migrationStatus = sqlite3_exec(db,migration,nil,nil,nil) }
+        guard schemaStatus == SQLITE_OK, migrationStatus == SQLITE_OK else {
             if let db { sqlite3_close(db) }
             throw Error.sql
         }

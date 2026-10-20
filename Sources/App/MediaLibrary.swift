@@ -63,10 +63,10 @@ struct MediaLibrary: View {
                 case .failure(let error): vm.errorMessage = error.localizedDescription
                 }
             }
-            .alert("Название записи", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
+            .alert("Название записи", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } }), presenting: renaming) { item in
                 TextField("Название", text: $title)
                 Button("Сохранить") {
-                    if let item = renaming { Task { await vm.rename(item, title: title) } }
+                    Task { await vm.rename(item, title: title) }
                     renaming = nil
                 }
                 Button("Отмена", role: .cancel) { renaming = nil }

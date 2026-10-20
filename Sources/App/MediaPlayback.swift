@@ -9,6 +9,7 @@ final class MediaPlayback: ObservableObject {
     @Published var rate: Float = 1
     private var observer: Any?
     private var itemID: UUID?
+    private var savedPosition = 0.0
 
     func open(_ item: MediaItem, url: URL, initialTime: Double?) async {
         close()
@@ -22,16 +23,21 @@ final class MediaPlayback: ObservableObject {
             let player = AVPlayer(playerItem: AVPlayerItem(asset: asset))
             self.player = player
             let saved = UserDefaults.standard.double(forKey: "position-\(item.id)")
-            let start = min(max(0, initialTime ?? saved), max(0, item.duration - 0.1))
+            let resume = saved >= item.duration - 1 ? 0 : saved
+            let start = min(max(0, initialTime ?? resume), max(0, item.duration - 0.1))
             await player.seek(to: CMTime(seconds: start, preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero)
             try Task.checkCancellation()
             position = start
+            savedPosition = start
             itemID = item.id
             observer = player.addPeriodicTimeObserver(forInterval: CMTime(seconds: 0.5, preferredTimescale: 600), queue: .main) { [weak self] time in
                 Task { @MainActor in
                     guard let self, self.itemID == item.id, time.seconds.isFinite else { return }
                     self.position = time.seconds
-                    UserDefaults.standard.set(time.seconds, forKey: "position-\(item.id)")
+                    if abs(time.seconds - self.savedPosition) >= 5 {
+                        UserDefaults.standard.set(time.seconds, forKey: "position-\(item.id)")
+                        self.savedPosition = time.seconds
+                    }
                 }
             }
             if initialTime != nil { player.playImmediately(atRate: rate) }

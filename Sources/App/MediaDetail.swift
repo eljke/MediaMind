@@ -115,14 +115,14 @@ struct MediaDetail: View {
         .searchable(text: $query, prompt: "Найти в этой записи")
         .task { await playback.open(item, url: vm.location(item), initialTime: initialTime) }
         .onDisappear { playback.close() }
-        .confirmationDialog("Заменить расшифровку?", isPresented: Binding(get: { confirmation != nil }, set: { if !$0 { confirmation = nil } }), titleVisibility: .visible) {
+        .confirmationDialog("Заменить расшифровку?", isPresented: Binding(get: { confirmation != nil }, set: { if !$0 { confirmation = nil } }), titleVisibility: .visible, presenting: confirmation) { replacement in
             Button("Продолжить") {
-                if confirmation == .subtitles { pickSubtitle = true }
+                if replacement == .subtitles { pickSubtitle = true }
                 else { vm.transcribe(item, restart: true) }
                 confirmation = nil
             }
             Button("Отмена", role: .cancel) { confirmation = nil }
-        } message: {
+        } message: { _ in
             Text("Текущие субтитры будут заменены после успешного импорта или распознавания. Сохранённый прогресс распознавания будет сброшен.")
         }
         .fileImporter(isPresented: $pickSubtitle, allowedContentTypes: [UTType(filenameExtension: "srt") ?? .plainText, UTType(filenameExtension: "vtt") ?? .plainText, .plainText], allowsMultipleSelection: false) { result in
