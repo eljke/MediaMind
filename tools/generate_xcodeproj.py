@@ -4,6 +4,7 @@ from pathlib import Path
 import hashlib
 import json
 import os
+import re
 
 BASE = Path(__file__).resolve().parents[1]
 NAME = json.loads((BASE/"Config/project.json").read_text())["name"]
@@ -105,7 +106,6 @@ out=BASE/(NAME+'.xcodeproj')/'project.pbxproj'
 out.parent.mkdir(exist_ok=True)
 out.write_text(proj, newline='\n')
 scheme = BASE/(NAME+'.xcodeproj')/'xcshareddata/xcschemes'/(NAME+'.xcscheme')
-import re
 text = scheme.read_text()
 test_action = f'''<TestAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.LLDB" shouldUseLaunchSchemeArgsEnv="YES">
   <Testables><TestableReference skipped="NO"><BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="{oid('target/tests')}" BuildableName="{NAME}AppTests.xctest" BlueprintName="{NAME}AppTests" ReferencedContainer="container:{NAME}.xcodeproj"/></TestableReference></Testables>

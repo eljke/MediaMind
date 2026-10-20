@@ -70,7 +70,9 @@ struct MediaLibrary: View {
             }
             .photosPicker(isPresented: $photoPicker, selection: $selectedVideo, matching: .videos, preferredItemEncoding: .current)
             .onChange(of: selectedVideo) { _, selection in
-                if let selection { vm.importVideo(selection) }
+                guard let selection else { return }
+                photoPicker = false
+                vm.importVideo(selection)
                 selectedVideo = nil
             }
             // File providers may expose a playable MOV as generic data rather than a movie UTI.
