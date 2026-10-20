@@ -144,6 +144,26 @@
 			isa = PBXBuildFile;
 			fileRef = 14C030D8A4EA017224D99B1C /* SpeechReadinessView.swift */;
 		};
+		269E7F18D13C3AF52CC3A431 /* TranscriptEditor.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "TranscriptEditor.swift";
+			sourceTree = "<group>";
+		};
+		810949001DFB3C7597C04484 /* TranscriptEditor.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 269E7F18D13C3AF52CC3A431 /* TranscriptEditor.swift */;
+		};
+		73991EE20DB4DD6D7ED3EF84 /* LibrarySearch.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "LibrarySearch.swift";
+			sourceTree = "<group>";
+		};
+		3D412267DE9C47D0FB158D30 /* LibrarySearch.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 73991EE20DB4DD6D7ED3EF84 /* LibrarySearch.swift */;
+		};
 		E5102BB7B380162B0C7728DE /* MediaActivity.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -183,6 +203,16 @@
 		73CB076F0C57830318CAF823 /* SpeechReadiness.swift in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = CE732929A5FE26F233EB1EFD /* SpeechReadiness.swift */;
+		};
+		387BD5AE928EE9EF5BE9EF31 /* TranscriptEditing.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "TranscriptEditing.swift";
+			sourceTree = "<group>";
+		};
+		AA586A83A82B74E4064796DB /* TranscriptEditing.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 387BD5AE928EE9EF5BE9EF31 /* TranscriptEditing.swift */;
 		};
 		C568178CE52C0F67C00ABE3D /* Assets.xcassets */ = {
 			isa = PBXFileReference;
@@ -224,6 +254,7 @@
 				89E29D8BBC96DD966375CD9F /* MediaViewModel.swift */,
 				4300C3522681025181F95007 /* OfflineSpeechService.swift */,
 				14C030D8A4EA017224D99B1C /* SpeechReadinessView.swift */,
+				269E7F18D13C3AF52CC3A431 /* TranscriptEditor.swift */,
 				CFB0444CCCFE8477E0B90CA3 /* Info.plist */,
 			);
 			path = "App";
@@ -232,10 +263,12 @@
 		C4C61C4BDC33094410B8ACF7 /* Core */ = {
 			isa = PBXGroup;
 			children = (
+				73991EE20DB4DD6D7ED3EF84 /* LibrarySearch.swift */,
 				E5102BB7B380162B0C7728DE /* MediaActivity.swift */,
 				94EB771E46E23B74FD45938B /* MediaCore.swift */,
 				00338E4B291FE580A2558823 /* MediaRepository.swift */,
 				CE732929A5FE26F233EB1EFD /* SpeechReadiness.swift */,
+				387BD5AE928EE9EF5BE9EF31 /* TranscriptEditing.swift */,
 			);
 			path = "Core";
 			sourceTree = "<group>";
@@ -286,10 +319,13 @@
 				7C03CD3A0A25577A1358BAF6 /* MediaViewModel.swift */,
 				E0833B1C361BBC771A1DDE51 /* OfflineSpeechService.swift */,
 				874D90A774EF7DE54BDA0781 /* SpeechReadinessView.swift */,
+				810949001DFB3C7597C04484 /* TranscriptEditor.swift */,
+				3D412267DE9C47D0FB158D30 /* LibrarySearch.swift */,
 				810D369B3341D2D5810CD202 /* MediaActivity.swift */,
 				9B72F6FD11949C52F9ADD757 /* MediaCore.swift */,
 				5F35463707DAF988DE9C573A /* MediaRepository.swift */,
 				73CB076F0C57830318CAF823 /* SpeechReadiness.swift */,
+				AA586A83A82B74E4064796DB /* TranscriptEditing.swift */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -6,7 +6,12 @@ import PhotosUI
 final class MediaViewModel: ObservableObject {
     @Published var items: [MediaItem] = []
     @Published var trash: [MediaItem] = []
-    @Published var results: [MediaHit] = []
+    @Published var results: [LibrarySearchHit] = []
+    @Published var searchScope = SearchScope.all
+    @Published var searchKind = MediaKind.all
+    @Published var searching = false
+    @Published var moreSearchResults = false
+    @Published var transcriptUndo: TranscriptUndo?
     @Published var query = ""
     @Published var busy = false
     @Published var progress = 0.0
@@ -35,6 +40,16 @@ final class MediaViewModel: ObservableObject {
     private var reloadGeneration = 0
     private var speechCheckGeneration = 0
     private var operationGeneration = 0
+    private var searchGeneration = 0
+    private var activeSearch = ""
+
+    struct TranscriptUndo {
+        let item: MediaItem
+        let previous: [SpeechSegment]
+        let updated: [SpeechSegment]
+    }
+    var canCancel: Bool { operation != nil }
+    var searchKey: String { "\(query)\u{0}\(searchScope.rawValue)\u{0}\(searchKind.rawValue)" }
 
     convenience init(root: URL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("MediaMind", isDirectory: true)) {
         self.init(root: root, speech: AppleOfflineSpeech())
@@ -175,6 +190,7 @@ final class MediaViewModel: ObservableObject {
             let parts = try await files.subtitles(from: source)
             try Task.checkCancellation()
             try await db.replaceSegments(parts, for: item.id)
+            if transcriptUndo?.item.id == item.id { transcriptUndo = nil }
             revision += 1
             await runSearch()
             return "Импортировано фрагментов: \(parts.count)"
@@ -193,14 +209,54 @@ final class MediaViewModel: ObservableObject {
         catch { errorMessage = error.localizedDescription; return nil }
     }
 
-    func runSearch() async {
+    func runSearch(more: Bool = false) async {
         guard let db else { return }
-        let text = query
+        let key = searchKey
+        if more && (searching || !moreSearchResults || key != activeSearch) { return }
+        searchGeneration += 1
+        let generation = searchGeneration
+        searching = true
+        if !more { results = []; moreSearchResults = false; activeSearch = key }
+        defer { if generation == searchGeneration { searching = false } }
         do {
-            let hits = try await db.search(text)
-            guard !Task.isCancelled, text == query else { return }
-            results = hits
+            let hits = try await db.find(query,scope:searchScope,kind:searchKind,limit:51,offset:more ? results.count : 0)
+            guard !Task.isCancelled, key == searchKey, generation == searchGeneration else { return }
+            if more { results += hits.prefix(50) } else { results = Array(hits.prefix(50)) }
+            moreSearchResults = hits.count > 50
         } catch { errorMessage = error.localizedDescription }
+    }
+
+    func reviseTranscript(_ item: MediaItem, previous: [SpeechSegment], updated: [SpeechSegment], discardPending: Bool) async throws {
+        guard let db else { throw MediaRepository.Error.open }
+        guard !busy else { throw TranscriptEditing.Error.busy }
+        busy = true; operationTitle = "Сохранение текста"; operationItemID = item.id; progress = 0
+        defer { busy = false; operationItemID = nil; revision += 1 }
+        if try await db.checkpoint(for:item.id) != nil && !discardPending { throw TranscriptEditing.Error.pendingRecognition }
+        try await db.reviseSegments(updated,replacing:previous,for:item.id)
+        transcriptUndo = TranscriptUndo(item:item,previous:previous,updated:updated)
+        deletedBookmark = nil
+        notice = nil
+        await reload(); await runSearch()
+    }
+
+    func undoTranscriptEdit() async {
+        guard let change = transcriptUndo else { return }
+        do {
+            try await reviseTranscript(change.item,previous:change.updated,updated:change.previous,discardPending:false)
+            transcriptUndo = nil
+            notice = "Изменение текста отменено"
+        } catch { errorMessage = error.localizedDescription }
+    }
+
+    func exportBookmarks(_ item: MediaItem) async -> URL? {
+        guard let db else { return nil }
+        do {
+            let notes = try await db.bookmarks(for:item.id)
+            guard !notes.isEmpty else { throw MediaFileImport.ImportError.noCues }
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent("MediaMind-notes-\(item.id).txt")
+            try BookmarkExport.text(title:item.title,bookmarks:notes).write(to:url,atomically:true,encoding:.utf8)
+            return url
+        } catch { errorMessage = error.localizedDescription; return nil }
     }
 
     func transcribe(_ item: MediaItem, restart: Bool = false) {
@@ -223,6 +279,7 @@ final class MediaViewModel: ObservableObject {
                     throw SpeechServiceError.noResult
                 }
                 try await db.replaceSegments(parts, for: item.id)
+                if transcriptUndo?.item.id == item.id { transcriptUndo = nil }
                 await runSearch()
                 return "Распознано фраз: \(parts.count)"
             } catch is CancellationError {
@@ -254,6 +311,7 @@ final class MediaViewModel: ObservableObject {
         guard let db else { throw MediaRepository.Error.open }
         try await db.saveBookmark(bookmark)
         bookmarkRevision += 1
+        await runSearch()
     }
 
     func removeBookmark(_ bookmark: MediaBookmark) async {
@@ -261,7 +319,9 @@ final class MediaViewModel: ObservableObject {
         do {
             try await db.removeBookmark(bookmark.id)
             deletedBookmark = bookmark
+            transcriptUndo = nil
             bookmarkRevision += 1
+            await runSearch()
         } catch { errorMessage = error.localizedDescription }
     }
 
@@ -301,6 +361,7 @@ final class MediaViewModel: ObservableObject {
             if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
             try await db.remove(item.id)
             if deletedBookmark?.mediaID == item.id { deletedBookmark = nil }
+            if transcriptUndo?.item.id == item.id { transcriptUndo = nil }
             UserDefaults.standard.removeObject(forKey: "position-\(item.id)")
             await reload()
         } catch { errorMessage = error.localizedDescription }

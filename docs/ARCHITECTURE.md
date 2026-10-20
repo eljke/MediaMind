@@ -50,6 +50,12 @@ The UI follows Apple's [progress guidance](https://developer.apple.com/design/hu
 
 Both adapters use the same audio-export/checkpoint loop. It validates loaded media duration, audio tracks, saved offsets and result timestamps; bounds temporary audio to 45 seconds and checks available disk space. Only finalized results enter checkpoints. SpeechAnalyzer input and result consumption run concurrently; finalization ends its streams, and timeout/cancellation finishes the analyzer. The legacy adapter keeps `requiresOnDeviceRecognition=true`. Failed or cancelled chunks never replace the published transcript, temporary files are removed, and old checkpoints remain compatible without a schema change. Native integration tests use real AVFoundation exports and SQLite persistence with a scripted recognizer at the speech boundary; actual speech models, permission prompts and LiveContainer still need physical-device verification.
 
+## Search and text changes
+
+Library search uses a parameterized union over media titles, transcript segments and bookmark notes, filters trash and media kind, and orders by stable media/match keys before LIMIT/OFFSET. The view model resets pagination on query/filter changes and rejects stale asynchronous results; the UI debounces typing and requests 50 matches at a time. The original transcript-only repository API delegates to the same query. Highlight ranges use the same case/diacritic-insensitive matching policy. A 10000-segment synthetic fixture checks the existing substring implementation before introducing FTS or changing its semantics.
+
+Transcript corrections and pairwise merges use the existing replacement transaction, with an expected-content check inside BEGIN IMMEDIATE. This prevents stale editors and undo from overwriting newer text, including writes from another database connection. Editing preserves IDs/timecodes; merges keep the first ID and cover both time ranges. UI editing holds the existing operation lock and explicitly confirms discarding pending recognition. A single in-memory undo snapshot restores text only if the expected revised content still matches; it never resurrects discarded checkpoints. Notes export uses the same time formatter as playback. These features require no schema upgrade.
+
 ## Continuous delivery contract
 
 - Work on `feature/*` / `fix/*`. AI coding agent creates commits only when it has actual working tree and Git permissions; never hallucinate commits or GitHub releases.

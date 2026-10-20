@@ -6,6 +6,59 @@ import SwiftUI
 
 @MainActor
 final class MediaWorkflowTests: XCTestCase {
+    func testTranscriptConsentAndUndo() async throws {
+        let root = try temporaryFolder()
+        let repo = try MediaRepository(url:root.appendingPathComponent("library.sqlite"))
+        let item = MediaItem(title:"Лекция",fileName:"a.mov",duration:90)
+        try await repo.save(item)
+        let original = [SpeechSegment(start:1,end:2,text:"Старое")]
+        try await repo.replaceSegments(original,for:item.id)
+        try await repo.saveCheckpoint(TranscriptionCheckpoint(language:"ru-RU",nextOffset:45),for:item.id)
+        let vm = MediaViewModel(root:root,speech:ScriptedSpeech())
+        await vm.reload()
+        let updated = try TranscriptEditing.replaceText(in:original,id:original[0].id,text:"Исправлено")
+        do { try await vm.reviseTranscript(item,previous:original,updated:updated,discardPending:false); XCTFail("Consent is required") }
+        catch TranscriptEditing.Error.pendingRecognition {}
+        let pending = try await repo.checkpoint(for:item.id)
+        XCTAssertEqual(pending?.nextOffset,45)
+        try await vm.reviseTranscript(item,previous:original,updated:updated,discardPending:true)
+        let cleared = try await repo.checkpoint(for:item.id)
+        XCTAssertNil(cleared)
+        await vm.undoTranscriptEdit()
+        let restored = try await repo.segments(for:item.id)
+        XCTAssertEqual(restored,original)
+        XCTAssertNil(vm.transcriptUndo)
+    }
+
+    func testSearchPagingAndNoteUpdates() async throws {
+        let root = try temporaryFolder()
+        let repo = try MediaRepository(url:root.appendingPathComponent("library.sqlite"))
+        let item = MediaItem(title:"Лекция",fileName:"a.mov",duration:200)
+        try await repo.save(item)
+        try await repo.replaceSegments((0..<121).map { SpeechSegment(start:Double($0),end:Double($0+1),text:"Фраза") },for:item.id)
+        let vm = MediaViewModel(root:root,speech:ScriptedSpeech())
+        await vm.reload()
+        vm.query = "фраза"
+        await vm.runSearch()
+        XCTAssertEqual(vm.results.count,50)
+        await vm.runSearch(more:true)
+        XCTAssertEqual(vm.results.count,100)
+        await vm.runSearch(more:true)
+        XCTAssertEqual(vm.results.count,121)
+        XCTAssertFalse(vm.moreSearchResults)
+        vm.searchScope = .bookmarks
+        await vm.runSearch()
+        XCTAssertTrue(vm.results.isEmpty)
+        let note = MediaBookmark(mediaID:item.id,position:7,note:"Фраза из заметки")
+        try await vm.saveBookmark(note)
+        XCTAssertEqual(vm.results.first?.position,7)
+        let exported = await vm.exportBookmarks(item)
+        let export = try XCTUnwrap(exported)
+        XCTAssertTrue(try String(contentsOf:export,encoding:.utf8).contains("[0:07] Фраза из заметки"))
+        await vm.removeBookmark(note)
+        XCTAssertTrue(vm.results.isEmpty)
+    }
+
     func testSpeechPreparation() async throws {
         let root = try temporaryFolder()
         let speech = ScriptedSpeech()
@@ -235,6 +288,19 @@ final class MediaWorkflowTests: XCTestCase {
         window.layoutIfNeeded()
         try await Task.sleep(for:.milliseconds(500))
         attach(window,name:"Speech readiness")
+        vm.query = "принцип"
+        await vm.runSearch()
+        window.rootViewController = UIHostingController(rootView:MediaSearchView().environmentObject(vm))
+        window.layoutIfNeeded()
+        try await Task.sleep(for:.milliseconds(600))
+        attach(window,name:"Library search")
+        let parts = await vm.segments(ready)
+        let segment = try XCTUnwrap(parts.first)
+        let draft = TranscriptDraft(original:parts,proposed:parts,segment:segment)
+        window.rootViewController = UIHostingController(rootView:TranscriptEditor(item:ready,draft:draft).environmentObject(vm))
+        window.layoutIfNeeded()
+        try await Task.sleep(for:.milliseconds(500))
+        attach(window,name:"Transcript editor")
     }
 
     private func attach(_ window: UIWindow, name: String) {
