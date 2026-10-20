@@ -1,0 +1,266 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 56;
+	objects = {
+		C8600A227CE34FB172F6FCFE /* MediaMindApp.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "MediaMindApp.swift";
+			sourceTree = "<group>";
+		};
+		3E5B6BEA58B905F0DE0D7A85 /* MediaMindApp.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = C8600A227CE34FB172F6FCFE /* MediaMindApp.swift */;
+		};
+		4300C3522681025181F95007 /* OfflineSpeechService.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "OfflineSpeechService.swift";
+			sourceTree = "<group>";
+		};
+		E0833B1C361BBC771A1DDE51 /* OfflineSpeechService.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 4300C3522681025181F95007 /* OfflineSpeechService.swift */;
+		};
+		94EB771E46E23B74FD45938B /* MediaCore.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "MediaCore.swift";
+			sourceTree = "<group>";
+		};
+		9B72F6FD11949C52F9ADD757 /* MediaCore.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 94EB771E46E23B74FD45938B /* MediaCore.swift */;
+		};
+		00338E4B291FE580A2558823 /* MediaRepository.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "MediaRepository.swift";
+			sourceTree = "<group>";
+		};
+		5F35463707DAF988DE9C573A /* MediaRepository.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 00338E4B291FE580A2558823 /* MediaRepository.swift */;
+		};
+		C568178CE52C0F67C00ABE3D /* Assets.xcassets */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = folder.assetcatalog;
+			path = "Assets.xcassets";
+			sourceTree = "<group>";
+		};
+		CFB0444CCCFE8477E0B90CA3 /* Info.plist */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = text.plist.xml;
+			path = "Info.plist";
+			sourceTree = "<group>";
+		};
+		7E265BBE9225C97E186E3F3F /* Assets in Resources */ = {
+			isa = PBXBuildFile;
+			fileRef = C568178CE52C0F67C00ABE3D /* Assets.xcassets */;
+		};
+		EC315E7F1C2FE64DEDB8A5B4 /* MediaMind.app */ = {
+			isa = PBXFileReference;
+			explicitFileType = wrapper.application;
+			includeInIndex = 0;
+			path = MediaMind.app;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		E280E64ECD4C33DECC5399A2 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				C8600A227CE34FB172F6FCFE /* MediaMindApp.swift */,
+				4300C3522681025181F95007 /* OfflineSpeechService.swift */,
+				CFB0444CCCFE8477E0B90CA3 /* Info.plist */,
+			);
+			path = "App";
+			sourceTree = "<group>";
+		};
+		C4C61C4BDC33094410B8ACF7 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				94EB771E46E23B74FD45938B /* MediaCore.swift */,
+				00338E4B291FE580A2558823 /* MediaRepository.swift */,
+			);
+			path = "Core";
+			sourceTree = "<group>";
+		};
+		16B4C84DAB2759B732812D69 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				E280E64ECD4C33DECC5399A2 /* App */,
+				C4C61C4BDC33094410B8ACF7 /* Core */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		DD78F2933CFCF3C26F41C332 /* Root */ = {
+			isa = PBXGroup;
+			children = (
+				16B4C84DAB2759B732812D69 /* Sources */,
+				C568178CE52C0F67C00ABE3D /* Assets.xcassets */,
+				F89A7602772BA173C7C7A124 /* products */,
+			);
+			sourceTree = "<group>";
+		};
+		F89A7602772BA173C7C7A124 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				EC315E7F1C2FE64DEDB8A5B4 /* product */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		2041260FFDD6EC973EFB396C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3E5B6BEA58B905F0DE0D7A85 /* MediaMindApp.swift */,
+				E0833B1C361BBC771A1DDE51 /* OfflineSpeechService.swift */,
+				9B72F6FD11949C52F9ADD757 /* MediaCore.swift */,
+				5F35463707DAF988DE9C573A /* MediaRepository.swift */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		668A59794F8AA78E5D454AF1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7E265BBE9225C97E186E3F3F /* assets */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		576F273DC477595AABF254A7 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		761714C8A165E8081A9E7105 /* Project Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				DEBUG_INFORMATION_FORMAT = dwarf-with-dsym;
+			};
+			name = Debug;
+		};
+		62F34CC7C3E5A95CACB84B41 /* App Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = dev.personal.mediamind;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Sources/App/Info.plist;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				SWIFT_VERSION = 5.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				TARGETED_DEVICE_FAMILY = "1,2";
+				MARKETING_VERSION = 0.1.0;
+				CURRENT_PROJECT_VERSION = 1;
+				CODE_SIGN_STYLE = Automatic;
+				OTHER_LDFLAGS = ("$(inherited)", "-lsqlite3");
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG";
+			};
+			name = Debug;
+		};
+		020E11887FE08E4C3E740296 /* Project Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				DEBUG_INFORMATION_FORMAT = dwarf-with-dsym;
+			};
+			name = Release;
+		};
+		87DDF04BCF0DBEC0E5AD0F4D /* App Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = dev.personal.mediamind;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Sources/App/Info.plist;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				SWIFT_VERSION = 5.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				TARGETED_DEVICE_FAMILY = "1,2";
+				MARKETING_VERSION = 0.1.0;
+				CURRENT_PROJECT_VERSION = 1;
+				CODE_SIGN_STYLE = Automatic;
+				OTHER_LDFLAGS = ("$(inherited)", "-lsqlite3");
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
+			};
+			name = Release;
+		};
+		DAC534730407E433B88B3775 /* project configs */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				761714C8A165E8081A9E7105 /* Debug */,
+				020E11887FE08E4C3E740296 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		6B422766B4BB9D064DE28E2D /* app configs */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				62F34CC7C3E5A95CACB84B41 /* Debug */,
+				87DDF04BCF0DBEC0E5AD0F4D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C3BB9BF570ED3C7BF9AE1ACA /* MediaMind */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6B422766B4BB9D064DE28E2D /* app */;
+			buildPhases = (
+				2041260FFDD6EC973EFB396C /* sources */,
+				576F273DC477595AABF254A7 /* frameworks */,
+				668A59794F8AA78E5D454AF1 /* resources */,
+			);
+			buildRules = ();
+			dependencies = ();
+			name = MediaMind;
+			productReference = EC315E7F1C2FE64DEDB8A5B4 /* product */;
+			productName = MediaMind;
+			productType = "com.apple.product-type.application";
+		};
+		F1E2C8199AB64485C0F07057 /* Project */ = {
+			isa = PBXProject;
+			buildConfigurationList = DAC534730407E433B88B3775 /* project */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = ru;
+			hasScannedForEncodings = 0;
+			knownRegions = (ru, en, Base);
+			mainGroup = DD78F2933CFCF3C26F41C332 /* root */;
+			productRefGroup = F89A7602772BA173C7C7A124 /* products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				C3BB9BF570ED3C7BF9AE1ACA /* target */,
+			);
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				TargetAttributes = { C3BB9BF570ED3C7BF9AE1ACA = { CreatedOnToolsVersion = 16.0; }; };
+			};
+		};
+	};
+	rootObject = F1E2C8199AB64485C0F07057 /* project */;
+}

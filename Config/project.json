@@ -1,0 +1,6 @@
+{
+  "name": "MediaMind",
+  "bundleIdentifier": "dev.personal.mediamind",
+  "deploymentTarget": "17.0",
+  "cloudRunner": "xcode-27"
+}

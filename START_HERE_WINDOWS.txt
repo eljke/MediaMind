@@ -1,0 +1,9 @@
+MediaMind v0.1.0 — WINDOWS 11
+
+1. Unpack ZIP. Open PowerShell in the MediaMind folder.
+2. Install Git and GitHub CLI with winget; gh auth login; configure git user name/email.
+3. Run: powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\publish_windows.ps1
+4. GitHub Actions > Build IPA > Run workflow. After green run download Artifacts *.ipa.
+5. Import the unsigned IPA in LiveContainer and test.
+
+See WINDOWS11_BUILD.md, MASTER_PROMPT.md, AGENTS.md

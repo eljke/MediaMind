@@ -1,0 +1,56 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [master, 'feature/**', 'fix/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: '6.2'
+      - name: Test release tooling
+        run: python3 tools/test_release.py
+      - name: Swift Package tests
+        run: swift test -j 2
+      - name: Validate Conventional Commits on PR
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch origin "${{ github.event.pull_request.base.ref }}"
+          python3 tools/release.py validate --base "${{ github.event.pull_request.base.sha }}"
+      - name: Validate current master commit
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        run: python3 tools/release.py validate
+      - name: Validate Xcode project and Info.plist generation
+        run: |
+          python3 tools/generate_xcodeproj.py
+          git diff --exit-code -- '*.pbxproj'
+          python3 - <<'PY'
+          import plistlib
+          from pathlib import Path
+          plistlib.loads(Path('Sources/App/Info.plist').read_bytes())
+          PY
+  ios:
+    runs-on: xcode-27
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build unsigned iOS app on arm64 Mac
+        run: bash tools/build_ipa_macos.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: debug-ipa-${{ github.sha }}
+          path: |
+            build/dist/*-unsigned.ipa
+            build/dist/*.sha256
+          if-no-files-found: error
+          retention-days: 14
