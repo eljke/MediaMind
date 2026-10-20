@@ -8,7 +8,11 @@ struct MediaStatusLabel: View {
             if let activity {
                 HStack(spacing: 6) { ProgressView().controlSize(.small); Text(activity) }
             } else {
-                Label(title, systemImage: icon).foregroundStyle(color)
+                Label {
+                    Text(title).foregroundStyle(.primary)
+                } icon: {
+                    Image(systemName: icon).foregroundStyle(color)
+                }
             }
         }.font(.caption).accessibilityElement(children: .combine)
     }
