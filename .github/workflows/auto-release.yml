@@ -18,7 +18,7 @@ jobs:
       version: ${{ steps.plan.outputs.version }}
       release_sha: ${{ steps.branch.outputs.release_sha }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           persist-credentials: true
@@ -53,7 +53,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: release/v${{ needs.prepare.outputs.version }}
       - name: Run Swift core tests
@@ -75,7 +75,7 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           persist-credentials: true

@@ -20,7 +20,7 @@ jobs:
     runs-on: xcode-27
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build, test media import and capture iPhone simulator
         run: bash tools/smoke_simulator_macos.sh
       - uses: actions/upload-artifact@v4
