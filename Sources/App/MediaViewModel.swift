@@ -16,27 +16,65 @@ final class MediaViewModel: ObservableObject {
     @Published var notice: String?
     @Published var ready = false
     @Published var revision = 0
+    @Published var overview: [UUID: MediaOverview] = [:]
+    @Published var bookmarkRevision = 0
+    @Published var deletedBookmark: MediaBookmark?
     @Published var language = UserDefaults.standard.string(forKey: "speechLanguage") ?? "ru-RU" {
         didSet { UserDefaults.standard.set(language, forKey: "speechLanguage") }
     }
     private var db: MediaRepository?
     private let root: URL
     private let files = MediaFileImport()
-    private let speech: TranscriptionService = AppleOfflineSpeech()
+    private let speech: TranscriptionService
     private var operation: Task<Void, Never>?
+    private var reloadGeneration = 0
 
-    init(root: URL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("MediaMind", isDirectory: true)) {
+    convenience init(root: URL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("MediaMind", isDirectory: true)) {
+        self.init(root: root, speech: AppleOfflineSpeech())
+    }
+
+    init(root: URL, speech: TranscriptionService) {
         self.root = root
+        self.speech = speech
+    }
+
+    var continuing: [MediaItem] {
+        Array(items.filter { overview[$0.id]?.playback?.canResume(duration: $0.duration) == true }
+            .sorted { (overview[$0.id]?.playback?.playedAt ?? .distantPast) > (overview[$1.id]?.playback?.playedAt ?? .distantPast) }.prefix(3))
     }
 
     func location(_ item: MediaItem) -> URL { root.appendingPathComponent("files", isDirectory: true).appendingPathComponent(item.fileName) }
 
     func reload() async {
+        reloadGeneration += 1
+        let generation = reloadGeneration
         do {
             if db == nil { db = try MediaRepository(url: root.appendingPathComponent("library.sqlite")) }
             guard let db else { return }
-            items = try await db.all()
-            trash = try await db.trashed()
+            let library = try await db.all()
+            let removed = try await db.trashed()
+            var next = try await db.overview()
+            var migrated = false
+            for item in library + removed {
+                let key = "position-\(item.id)"
+                if let legacy = UserDefaults.standard.object(forKey: key) as? Double {
+                    if next[item.id]?.playback == nil && legacy.isFinite && legacy > 0 {
+                        try await db.savePlayback(PlaybackPosition(position: legacy, playedAt: item.addedAt), for: item.id)
+                        migrated = true
+                    }
+                    UserDefaults.standard.removeObject(forKey: key)
+                }
+            }
+            if migrated { next = try await db.overview() }
+            guard generation == reloadGeneration else { return }
+            for (id, current) in overview {
+                if let saved = current.playback, let incoming = next[id], saved.playedAt > (incoming.playback?.playedAt ?? .distantPast) {
+                    next[id]?.playback = saved
+                }
+            }
+            items = library
+            trash = removed
+            overview = next
             ready = true
         } catch { errorMessage = error.localizedDescription }
     }
@@ -121,22 +159,71 @@ final class MediaViewModel: ObservableObject {
         guard let db else { return }
         let selectedLanguage = language
         perform("Распознавание речи", item: item.id) { [self] in
-            let saved = try await db.checkpoint(for: item.id)
-            let initial: TranscriptionCheckpoint
-            if !restart, let saved, saved.language == selectedLanguage { initial = saved }
-            else { initial = TranscriptionCheckpoint(language: selectedLanguage) }
-            let parts = try await speech.transcribe(file: location(item), checkpoint: initial) { checkpoint in
-                try await db.saveCheckpoint(checkpoint, for: item.id)
-            } progress: { [weak self] value in self?.progress = value }
-            try Task.checkCancellation()
-            guard !parts.isEmpty else {
-                try await db.clearCheckpoint(for: item.id)
-                throw SpeechServiceError.noResult
+            do {
+                let saved = try await db.checkpoint(for: item.id)
+                let initial: TranscriptionCheckpoint
+                if !restart, let saved, saved.language == selectedLanguage { initial = saved }
+                else { initial = TranscriptionCheckpoint(language: selectedLanguage) }
+                try await db.saveCheckpoint(initial, for: item.id)
+                try await db.clearTranscriptionFailure(for: item.id)
+                let parts = try await speech.transcribe(file: location(item), checkpoint: initial) { checkpoint in
+                    try await db.saveCheckpoint(checkpoint, for: item.id)
+                } progress: { [weak self] value in self?.progress = value }
+                try Task.checkCancellation()
+                guard !parts.isEmpty else {
+                    try await db.clearCheckpoint(for: item.id)
+                    throw SpeechServiceError.noResult
+                }
+                try await db.replaceSegments(parts, for: item.id)
+                await runSearch()
+                return "Распознано фраз: \(parts.count)"
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                try await db.recordTranscriptionFailure(error.localizedDescription, for: item.id)
+                throw error
             }
-            try await db.replaceSegments(parts, for: item.id)
-            await runSearch()
-            return "Распознано фраз: \(parts.count)"
         }
+    }
+
+    func recordPlayback(_ value: PlaybackPosition, for item: MediaItem) async {
+        guard let db else { return }
+        do {
+            try await db.savePlayback(value, for: item.id)
+            if overview[item.id] != nil && value.playedAt >= (overview[item.id]?.playback?.playedAt ?? .distantPast) {
+                overview[item.id]?.playback = PlaybackPosition(position: min(value.position, item.duration), playedAt: value.playedAt)
+            }
+        } catch { errorMessage = error.localizedDescription }
+    }
+
+    func bookmarks(_ item: MediaItem) async -> [MediaBookmark] {
+        guard let db else { return [] }
+        do { return try await db.bookmarks(for: item.id) }
+        catch { errorMessage = error.localizedDescription; return [] }
+    }
+
+    func saveBookmark(_ bookmark: MediaBookmark) async throws {
+        guard let db else { throw MediaRepository.Error.open }
+        try await db.saveBookmark(bookmark)
+        bookmarkRevision += 1
+    }
+
+    func removeBookmark(_ bookmark: MediaBookmark) async {
+        guard let db else { return }
+        do {
+            try await db.removeBookmark(bookmark.id)
+            deletedBookmark = bookmark
+            bookmarkRevision += 1
+        } catch { errorMessage = error.localizedDescription }
+    }
+
+    func undoBookmarkDeletion() async {
+        guard let bookmark = deletedBookmark else { return }
+        do {
+            try await saveBookmark(bookmark)
+            deletedBookmark = nil
+            notice = "Закладка восстановлена"
+        } catch { errorMessage = error.localizedDescription }
     }
 
     func cancel() { operation?.cancel() }
@@ -165,6 +252,7 @@ final class MediaViewModel: ObservableObject {
             let url = location(item)
             if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
             try await db.remove(item.id)
+            if deletedBookmark?.mediaID == item.id { deletedBookmark = nil }
             UserDefaults.standard.removeObject(forKey: "position-\(item.id)")
             await reload()
         } catch { errorMessage = error.localizedDescription }
@@ -205,6 +293,7 @@ final class MediaViewModel: ObservableObject {
             do { notice = try await action() }
             catch is CancellationError { notice = "Остановлено. Завершённые фрагменты распознавания сохранены." }
             catch { errorMessage = error.localizedDescription }
+            await reload()
         }
     }
 }

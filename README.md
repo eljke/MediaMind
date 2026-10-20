@@ -26,6 +26,18 @@ Manual check on iOS 27 / LiveContainer:
 
 Simulator import tests use generated H.264 MOV/MP4, mixed-case suffixes, an M4V-named MP4 container, WAV, malformed media and a disappearing provider source. They exercise local copying, AVFoundation validation, SQLite persistence and temporary-file lifetime. They do not automate the Photos/Files system UI, download iCloud assets or prove compatibility with the reported video or LiveContainer permissions.
 
+## Returning to recordings
+
+Each recording shows its transcript status: no transcript, ready, paused, recognition failed, or an active operation. A failed retry leaves the previous transcript intact; the last error and completed chunks survive relaunch. Importing subtitles or successfully completing recognition clears the error. Progress is indeterminate during preparation and shows a percentage once measured progress is available.
+
+The library's **Continue listening** section shows up to three unfinished recordings ordered by last playback. Position is saved every five seconds during playback and flushed on native pause, leaving the recording and entering the background. Opening a recording without playing does not change listening history. Recordings with no progress or at most one second remaining are excluded; trashed recordings remain hidden until restored. Background entry pauses playback. Previous `position-*` preferences migrate into SQLite; their original add date is used until the next actual playback because old versions did not record listening dates.
+
+Use **Bookmarks > Add** on a recording to capture the current timestamp, optionally with a note of up to 2000 characters. Tap a bookmark to play from that time; its menu edits the note or deletes the bookmark. Deletion can be undone using **Restore** in the message bar. Unsaved note edits require an explicit discard. Bookmarks remain attached to the recording when renamed, when its transcript is replaced and while it is in the trash. Permanent deletion removes them together with the recording.
+
+Schema v2 adds bookmarks, playback and recognition-failure tables. Existing databases are backed up through SQLite's backup API before migration; backups stay beside `library.sqlite` as `library.sqlite.v0-backup.sqlite` or `library.sqlite.v1-backup.sqlite`. Migration failure does not rewrite existing recordings or transcripts. Downgrading requires restoring the older database backup; older app versions intentionally reject schema v2.
+
+Manual verification: play a recording, pause using the native player, return to the library and resume from **Continue listening**. Relaunch and verify the same position. Add and edit a bookmark, jump to it, delete it and restore it. Replace subtitles and trash/restore the recording; verify the bookmark remains. Stop recognition and confirm the paused status; retry a failed recognition and verify the previous text remains available. Check large text, VoiceOver and light/dark appearance on the actual iPhone. Simulator tests cover the native player and persisted state; Apple Speech permissions still require device verification.
+
 ## Known gaps
 
 Apple offline speech depends on installed language/system permission and may not work inside LiveContainer; no WhisperKit bundled. Processing needs the app foreground; moving to the background cancels the current operation. Completed speech chunks remain resumable after relaunch; the unfinished chunk is repeated. Audio gaps and interrupted speech requests still depend on Apple's engine. No speaker diarization, semantic search, automatic media download, translation or guaranteed speed benchmarks.

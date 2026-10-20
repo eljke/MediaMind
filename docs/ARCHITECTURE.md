@@ -38,6 +38,12 @@ Speech checkpoints store the selected language, next chunk offset and completed 
 
 `MediaFileImport` performs bounded stream copies and subtitle parsing away from the main actor. `MediaViewModel` permits one import/transcription operation at a time and cancels it on background entry. Apple recognition retains its task, serializes completion on the main actor, and has cancellation and a 90-second per-chunk response timeout. `MediaPlayback` owns the player/time observer and saves position per recording.
 
+Schema v2 adds `bookmarks`, `playback` and `transcription_failures`, each referencing media with cascading permanent deletion. Before upgrading an existing v0/v1 database, the SQLite Backup API creates a consistent snapshot including committed WAL data; each migration is transactional. Newer schema versions are rejected before changing the database. Existing transcript/checkpoint tables are preserved. Bookmark notes are bounded at the domain boundary and SQL values are bound parameters. The overview aggregates segment counts, pending checkpoints, failures and playback in one query. Active operations are transient UI state; paused/ready/error states derive from persisted facts.
+
+Playback snapshots have a position and timestamp; stale asynchronous writes cannot replace newer snapshots. Legacy UserDefaults positions migrate once after a successful database write. The player saves only after playback activity, flushes on pause/background/close, ignores callbacks from obsolete player sessions, and removes periodic, KVO and end-of-playback observations when closed. The continue list excludes trash and completed recordings. Bookmark timestamps are independent of transcript segment IDs, so replacing a transcript does not invalidate saved moments. Undo restores the most recently deleted bookmark during the current app session.
+
+The UI follows Apple's [progress guidance](https://developer.apple.com/design/human-interface-guidelines/progress-indicators): preparation uses an indeterminate indicator and measured progress uses a bar. Statuses include text and symbols alongside color. AVPlayer time observations are paired with [removal](https://developer.apple.com/documentation/avfoundation/avplayer/addperiodictimeobserver(forinterval:queue:using:)); database migration backups use the [SQLite Backup API](https://www.sqlite.org/backup.html).
+
 ## Continuous delivery contract
 
 - Work on `feature/*` / `fix/*`. AI coding agent creates commits only when it has actual working tree and Git permissions; never hallucinate commits or GitHub releases.

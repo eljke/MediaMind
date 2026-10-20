@@ -14,6 +14,16 @@
 			isa = PBXBuildFile;
 			fileRef = 5DF89CAD6BEFAF2312D1F496 /* ImportedVideo.swift */;
 		};
+		A610A2D161583F9B08E8C0A4 /* MediaBookmarks.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "MediaBookmarks.swift";
+			sourceTree = "<group>";
+		};
+		81EC8558CBDDFC5AC3B17EF8 /* MediaBookmarks.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = A610A2D161583F9B08E8C0A4 /* MediaBookmarks.swift */;
+		};
 		3103D4DF035C61748FC58918 /* MediaDetail.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -84,6 +94,16 @@
 			isa = PBXBuildFile;
 			fileRef = 36332A74663A63EB4A9B5CDE /* MediaSettings.swift */;
 		};
+		53EE3C3684ED0552DC0FEA61 /* MediaStatusLabel.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "MediaStatusLabel.swift";
+			sourceTree = "<group>";
+		};
+		AD24C3011A035DA0415F8812 /* MediaStatusLabel.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 53EE3C3684ED0552DC0FEA61 /* MediaStatusLabel.swift */;
+		};
 		89E29D8BBC96DD966375CD9F /* MediaViewModel.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -103,6 +123,16 @@
 		E0833B1C361BBC771A1DDE51 /* OfflineSpeechService.swift in Sources */ = {
 			isa = PBXBuildFile;
 			fileRef = 4300C3522681025181F95007 /* OfflineSpeechService.swift */;
+		};
+		E5102BB7B380162B0C7728DE /* MediaActivity.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "MediaActivity.swift";
+			sourceTree = "<group>";
+		};
+		810D369B3341D2D5810CD202 /* MediaActivity.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = E5102BB7B380162B0C7728DE /* MediaActivity.swift */;
 		};
 		94EB771E46E23B74FD45938B /* MediaCore.swift */ = {
 			isa = PBXFileReference;
@@ -151,6 +181,7 @@
 			isa = PBXGroup;
 			children = (
 				5DF89CAD6BEFAF2312D1F496 /* ImportedVideo.swift */,
+				A610A2D161583F9B08E8C0A4 /* MediaBookmarks.swift */,
 				3103D4DF035C61748FC58918 /* MediaDetail.swift */,
 				DFB6F8B93A008A3B04F0CB4D /* MediaFileImport.swift */,
 				AB61A18DBB23A8BA0605D4E2 /* MediaLibrary.swift */,
@@ -158,6 +189,7 @@
 				D79534E6EB21C7778BD76539 /* MediaPlayback.swift */,
 				552C3398B2392558121F1175 /* MediaSearchView.swift */,
 				36332A74663A63EB4A9B5CDE /* MediaSettings.swift */,
+				53EE3C3684ED0552DC0FEA61 /* MediaStatusLabel.swift */,
 				89E29D8BBC96DD966375CD9F /* MediaViewModel.swift */,
 				4300C3522681025181F95007 /* OfflineSpeechService.swift */,
 				CFB0444CCCFE8477E0B90CA3 /* Info.plist */,
@@ -168,6 +200,7 @@
 		C4C61C4BDC33094410B8ACF7 /* Core */ = {
 			isa = PBXGroup;
 			children = (
+				E5102BB7B380162B0C7728DE /* MediaActivity.swift */,
 				94EB771E46E23B74FD45938B /* MediaCore.swift */,
 				00338E4B291FE580A2558823 /* MediaRepository.swift */,
 			);
@@ -207,6 +240,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A8C3D1F77FC93B336FC7BB91 /* ImportedVideo.swift */,
+				81EC8558CBDDFC5AC3B17EF8 /* MediaBookmarks.swift */,
 				B2FF1B503268D7759C574743 /* MediaDetail.swift */,
 				A70135CA3883ADAE8114462A /* MediaFileImport.swift */,
 				BFD918A9F1ED3D65118DC5FC /* MediaLibrary.swift */,
@@ -214,8 +248,10 @@
 				727345D0EF3FB536FF4ED5CD /* MediaPlayback.swift */,
 				FD852BF1B93CDF15C2EBC30F /* MediaSearchView.swift */,
 				359600A6F2F6523A4475EA01 /* MediaSettings.swift */,
+				AD24C3011A035DA0415F8812 /* MediaStatusLabel.swift */,
 				7C03CD3A0A25577A1358BAF6 /* MediaViewModel.swift */,
 				E0833B1C361BBC771A1DDE51 /* OfflineSpeechService.swift */,
+				810D369B3341D2D5810CD202 /* MediaActivity.swift */,
 				9B72F6FD11949C52F9ADD757 /* MediaCore.swift */,
 				5F35463707DAF988DE9C573A /* MediaRepository.swift */,
 			);
@@ -352,10 +388,21 @@
 			isa = PBXBuildFile;
 			fileRef = 1637905EF12812B766D990F7 /* MediaImportTests.swift */;
 		};
+		5F88DFC6E1DEF860B23D1471 /* MediaWorkflowTests.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "MediaWorkflowTests.swift";
+			sourceTree = "<group>";
+		};
+		9DF0D96068ABAC434B20E13B /* MediaWorkflowTests.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 5F88DFC6E1DEF860B23D1471 /* MediaWorkflowTests.swift */;
+		};
 		006CEFA9887FCF0EBE63A14D /* App tests */ = {
 			isa = PBXGroup;
 			children = (
 				1637905EF12812B766D990F7 /* MediaImportTests.swift */,
+				5F88DFC6E1DEF860B23D1471 /* MediaWorkflowTests.swift */,
 			);
 			path = Tests/App;
 			sourceTree = "<group>";
@@ -372,6 +419,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				59E385887E30F6452901CDBF /* MediaImportTests.swift */,
+				9DF0D96068ABAC434B20E13B /* MediaWorkflowTests.swift */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

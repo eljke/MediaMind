@@ -29,18 +29,19 @@ struct MediaLibrary: View {
                     }
                 } else {
                     List {
+                        if !vm.continuing.isEmpty {
+                            Section("Продолжить прослушивание") {
+                                ForEach(vm.continuing) { item in
+                                    NavigationLink { MediaDetail(item: item, initialTime: vm.overview[item.id]?.playback?.position) } label: {
+                                        MediaLibraryRow(item: item, overview: vm.overview[item.id] ?? MediaOverview(), activity: vm.operationItemID == item.id ? vm.operationTitle : nil, showProgress: true)
+                                    }
+                                }
+                            }
+                        }
                         Section {
                             ForEach(vm.items) { item in
                                 NavigationLink { MediaDetail(item: item) } label: {
-                                    HStack(spacing: 12) {
-                                        Image(systemName: ["mp4", "mov", "m4v"].contains(URL(fileURLWithPath: item.fileName).pathExtension) ? "video.circle.fill" : "waveform.circle.fill")
-                                            .font(.largeTitle).foregroundStyle(.indigo).accessibilityHidden(true)
-                                        VStack(alignment: .leading, spacing: 6) {
-                                            Text(item.title).font(.headline).lineLimit(2)
-                                            Text("\(MediaDetail.time(item.duration)) · \(item.addedAt.formatted(date: .abbreviated, time: .omitted))")
-                                                .font(.caption).foregroundStyle(.secondary)
-                                        }
-                                    }.padding(.vertical, 6)
+                                    MediaLibraryRow(item: item, overview: vm.overview[item.id] ?? MediaOverview(), activity: vm.operationItemID == item.id ? vm.operationTitle : nil)
                                 }
                                 .swipeActions(allowsFullSwipe: false) {
                                     Button(role: .destructive) { Task { await vm.moveToTrash(item) } } label: { Label("В корзину", systemImage: "trash") }

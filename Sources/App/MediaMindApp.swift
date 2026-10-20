@@ -22,13 +22,22 @@ struct MediaRoot: View {
                     HStack {
                         VStack(alignment: .leading) {
                             Text(vm.operationTitle).font(.subheadline.bold())
-                            Text("\(Int(vm.progress * 100)) % · держи приложение открытым").font(.caption).foregroundStyle(.secondary)
+                            Text(vm.progress > 0 ? "\(Int(vm.progress * 100)) % · держи приложение открытым" : "Подготовка · держи приложение открытым").font(.caption).foregroundStyle(.secondary)
                         }
                         Spacer()
                         Button("Остановить") { vm.cancel() }.frame(minHeight: 44)
                     }
-                    ProgressView(value: vm.progress).accessibilityLabel("Прогресс обработки")
+                    if vm.progress > 0 { ProgressView(value: vm.progress).accessibilityLabel("Прогресс обработки") }
+                    else { ProgressView().accessibilityLabel("Подготовка обработки") }
                 }.padding().background(.regularMaterial)
+            } else if vm.deletedBookmark != nil {
+                HStack {
+                    Text("Закладка удалена").font(.footnote)
+                    Spacer(minLength: 8)
+                    Button("Восстановить") { Task { await vm.undoBookmarkDeletion() } }.frame(minHeight: 44)
+                    Button { vm.deletedBookmark = nil } label: { Image(systemName: "xmark.circle.fill").frame(width: 44, height: 44) }
+                        .accessibilityLabel("Закрыть сообщение")
+                }.padding(.horizontal).background(.regularMaterial)
             } else if let notice = vm.notice {
                 HStack {
                     Text(notice).font(.footnote)
