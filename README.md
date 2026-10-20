@@ -25,6 +25,7 @@ Apple offline speech depends on installed language/system permission and may not
 
 - Portable unit tests: `swift test` on supported Swift environment, with SQLite development headers installed (`libsqlite3-dev` on Linux). Release tooling: `python tools/test_release.py`.
 - Regenerate Xcode: `python tools/generate_xcodeproj.py` (checked into Git).
+- Pull requests changing the app run an iPhone simulator launch check and attach a screenshot. The same check is available manually through **iPhone simulator smoke test** in Actions. This verifies simulator launch, not LiveContainer capabilities.
 - Deterministic SemVer planner: `python tools/release.py plan` (requires Git history).
 - Release on `master`: Conventional Commit changes cause GitHub Actions to create `release/vX.Y.Z`, compile IPA, publish GitHub Release, then merge branch back to master when allowed.
 - Master prompt: [MASTER_PROMPT.md](MASTER_PROMPT.md). Agent instructions: [AGENTS.md](AGENTS.md). Architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).

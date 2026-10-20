@@ -23,6 +23,7 @@ public actor MediaRepository {
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         guard sqlite3_open(url.path, &db) == SQLITE_OK else {
             if let db { sqlite3_close(db) }
+            db = nil
             throw Error.open
         }
         sqlite3_busy_timeout(db, 5000)
@@ -31,12 +32,14 @@ public actor MediaRepository {
               sqlite3_step(versionStatement) == SQLITE_ROW else {
             sqlite3_finalize(versionStatement)
             sqlite3_close(db)
+            db = nil
             throw Error.sql
         }
         let version = sqlite3_column_int(versionStatement,0)
         sqlite3_finalize(versionStatement)
         guard version <= 1 else {
             sqlite3_close(db)
+            db = nil
             throw Error.newerSchema
         }
         sqlite3_create_function_v2(db, "media_normalized", 1, SQLITE_UTF8 | SQLITE_DETERMINISTIC, nil, { context, _, values in
@@ -54,6 +57,7 @@ public actor MediaRepository {
         if schemaStatus == SQLITE_OK && version == 0 { migrationStatus = sqlite3_exec(db,migration,nil,nil,nil) }
         guard schemaStatus == SQLITE_OK, migrationStatus == SQLITE_OK else {
             if let db { sqlite3_close(db) }
+            db = nil
             throw Error.sql
         }
     }
