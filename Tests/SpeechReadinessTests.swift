@@ -2,6 +2,33 @@ import XCTest
 @testable import MediaMindCore
 
 final class SpeechReadinessTests: XCTestCase {
+    func testRussianDictationFallback() {
+        for permission in [SpeechReadiness.Permission.notRequested,.authorized,.denied,.restricted] {
+            var status = SpeechReadiness(permission:permission,model:.unsupportedLanguage,legacy:.offlineUnavailable,dictation:.missing)
+            XCTAssertNil(status.engine)
+            XCTAssertEqual(status.installationEngine,.dictation)
+            XCTAssertEqual(status.issue,.modelRequired)
+            status.dictation = .downloading
+            XCTAssertEqual(status.issue,.modelDownloading)
+            status.dictation = .installed
+            XCTAssertEqual(status.engine,.dictation)
+            XCTAssertNil(status.issue)
+            XCTAssertFalse(status.canInstall)
+        }
+    }
+
+    func testModernAndLegacyRemainAvailable() {
+        var status = SpeechReadiness(permission:.authorized,model:.installed,legacy:.ready,dictation:.installed)
+        XCTAssertEqual(status.engine,.analyzer)
+        status.model = .unsupportedDevice
+        XCTAssertEqual(status.engine,.dictation)
+        status.dictation = .missing
+        XCTAssertEqual(status.engine,.recognizer)
+        XCTAssertEqual(status.installationEngine,.dictation)
+        status.model = .missing
+        XCTAssertEqual(status.installationEngine,.analyzer)
+    }
+
     func testModernNeedsNoLegacyPermission() {
         for permission in [SpeechReadiness.Permission.notRequested, .denied, .restricted, .authorized] {
             let status = SpeechReadiness(permission:permission,model:.installed,legacy:.offlineUnavailable)

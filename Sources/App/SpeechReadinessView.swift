@@ -12,21 +12,25 @@ struct SpeechReadinessView: View {
         DisclosureGroup(isExpanded: $expanded) {
             VStack(alignment: .leading, spacing: 12) {
                 if let status = vm.speechReadiness {
-                    LabeledContent("SpeechAnalyzer", value: model(status.model))
+                    LabeledContent("SpeechTranscriber", value: model(status.model))
+                    LabeledContent("DictationTranscriber", value: model(status.dictation))
                     LabeledContent("SFSpeechRecognizer", value: legacy(status.legacy))
                     LabeledContent("Разрешение SFSpeechRecognizer", value: permission(status.permission))
                     if let issue = status.issue { Text(reason(issue)).font(.footnote) }
-                    Text("SpeechAnalyzer работает локально и не требует разрешения старого движка. Доступность внутри LiveContainer подтверждается пробным распознаванием на устройстве.")
+                    Text("Оба модуля SpeechAnalyzer работают локально, без разрешения старого движка. Если SpeechTranscriber не поддерживает язык, проверяется системная диктовка DictationTranscriber; её модель можно загрузить отдельно. Работу в LiveContainer нужно подтвердить распознаванием на устройстве.")
                         .font(.footnote).foregroundStyle(.secondary)
-                    if status.permission == .notRequested && status.engine != .analyzer {
+                    if status.permission == .notRequested && (status.engine == nil || status.engine == .recognizer) {
                         Button("Разрешить старый движок") { vm.requestSpeechPermission() }.frame(minHeight: 44)
                     }
                     if status.permission == .denied || status.permission == .restricted,
                        let settings = URL(string: UIApplication.openSettingsURLString) {
                         Link("Открыть настройки приложения", destination: settings).frame(minHeight: 44)
                     }
-                    if status.canInstall {
-                        Button(status.model == .downloading ? "Повторить запрос загрузки" : "Загрузить модель SpeechAnalyzer") { download = true }.frame(minHeight: 44)
+                    if let engine = status.installationEngine {
+                        Button("Загрузить модель \(engine.rawValue)") { download = true }.frame(minHeight: 44)
+                    } else if status.legacy == .offlineUnavailable && status.engine == nil {
+                        Text("Для старого движка может понадобиться клавиатура выбранного языка и включённая диктовка в Настройки → Основные → Клавиатура. После подготовки языка по Wi-Fi обнови проверку. Это не гарантирует доступ внутри LiveContainer.")
+                            .font(.footnote).foregroundStyle(.secondary)
                     }
                 } else { Text("Поддержка языка ещё не проверена").font(.footnote).foregroundStyle(.secondary) }
                 Button { Task { await vm.checkSpeech() } } label: {
@@ -62,7 +66,7 @@ struct SpeechReadinessView: View {
     private func legacy(_ value: SpeechReadiness.Legacy) -> String {
         switch value {
         case .unsupportedLanguage: return "Язык не поддерживается"
-        case .offlineUnavailable: return "Офлайн-режим недоступен"
+        case .offlineUnavailable: return "Офлайн-режим не подтверждён"
         case .temporarilyUnavailable: return "Временно недоступен"
         case .ready: return "Поддерживает офлайн-режим"
         }
