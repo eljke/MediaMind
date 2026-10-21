@@ -7,12 +7,12 @@ jobs:
   ipa:
     runs-on: xcode-27
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Run portable core tests
         run: swift test -j 2
       - name: Build unsigned device IPA
         run: bash tools/build_ipa_macos.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: unsigned-ipa-${{ github.run_number }}
           path: |

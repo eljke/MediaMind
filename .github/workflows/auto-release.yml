@@ -20,7 +20,7 @@ jobs:
       prerelease: ${{ steps.plan.outputs.prerelease }}
       release_sha: ${{ steps.branch.outputs.release_sha }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           persist-credentials: true
@@ -56,14 +56,14 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: release/v${{ needs.prepare.outputs.tag }}
       - name: Run Swift core tests
         run: swift test -j 2
       - name: Build and verify unsigned iPhone IPA
         run: bash tools/build_ipa_macos.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release-${{ needs.prepare.outputs.tag }}
           path: |
@@ -78,11 +78,11 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           persist-credentials: true
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: release-${{ needs.prepare.outputs.tag }}
           path: dist
