@@ -55,7 +55,7 @@ struct MediaSettings: View {
                 }
             }
             .navigationTitle("Настройки")
-            .sheet(item:$backup) { folder in BackupFolderExporter(url:folder.url) { backup = nil } }
+            .sheet(item:$backup) { folder in BackupFolderExporter(url:folder.url) { backup = nil }.interactiveDismissDisabled() }
             .fileImporter(isPresented:$pickBackup,allowedContentTypes:[.folder],allowsMultipleSelection:false) { result in
                 switch result {
                 case .success(let urls): restoring = urls.first

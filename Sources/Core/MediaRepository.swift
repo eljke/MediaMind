@@ -88,6 +88,8 @@ public actor MediaRepository {
         let status = sqlite3_backup_step(copy, -1)
         let finished = sqlite3_backup_finish(copy)
         guard status == SQLITE_DONE, finished == SQLITE_OK else { throw Error.backup }
+        // A standalone snapshot must open read-only without WAL sidecars on iOS.
+        guard sqlite3_exec(destination,"PRAGMA journal_mode=DELETE",nil,nil,nil) == SQLITE_OK else { throw Error.backup }
     }
     deinit { if let db { sqlite3_close(db) } }
     public func snapshot(to url: URL) throws {
