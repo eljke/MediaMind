@@ -301,6 +301,10 @@ final class MediaWorkflowTests: XCTestCase {
         window.layoutIfNeeded()
         try await Task.sleep(for:.milliseconds(500))
         attach(window,name:"Transcript editor")
+        window.rootViewController = UIHostingController(rootView:MediaSummaryView(item:ready).environmentObject(vm))
+        window.layoutIfNeeded()
+        try await Task.sleep(for:.milliseconds(500))
+        attach(window,name:"Local summary")
     }
 
     private func attach(_ window: UIWindow, name: String) {

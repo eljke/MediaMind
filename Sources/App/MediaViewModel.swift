@@ -38,6 +38,7 @@ final class MediaViewModel: ObservableObject {
     private let backups = LibraryBackup()
     private let speech: TranscriptionService
     private var operation: Task<Void, Never>?
+    private var backupTask: Task<URL, Error>?
     private var reloadGeneration = 0
     private var speechCheckGeneration = 0
     private var operationGeneration = 0
@@ -49,7 +50,7 @@ final class MediaViewModel: ObservableObject {
         let previous: [SpeechSegment]
         let updated: [SpeechSegment]
     }
-    var canCancel: Bool { operation != nil }
+    var canCancel: Bool { operation != nil || backupTask != nil }
     var searchKey: String { "\(query)\u{0}\(searchScope.rawValue)\u{0}\(searchKind.rawValue)" }
 
     convenience init(root: URL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("MediaMind", isDirectory: true)) {
@@ -335,7 +336,7 @@ final class MediaViewModel: ObservableObject {
         } catch { errorMessage = error.localizedDescription }
     }
 
-    func cancel() { operation?.cancel() }
+    func cancel() { operation?.cancel(); backupTask?.cancel() }
 
     func moveToTrash(_ item: MediaItem) async {
         guard let db, !busy else { return }
@@ -382,8 +383,12 @@ final class MediaViewModel: ObservableObject {
     func createBackup() async -> URL? {
         guard let db, !busy else { return nil }
         busy = true; operationTitle = "Создание полной копии"; progress = 0
-        defer { busy = false }
-        do { return try await backups.create(repository:db,root:root) }
+        UIApplication.shared.isIdleTimerDisabled = true
+        let task = Task { try await backups.create(repository:db,root:root) }
+        backupTask = task
+        defer { busy = false; backupTask = nil; UIApplication.shared.isIdleTimerDisabled = false }
+        do { return try await task.value }
+        catch is CancellationError { notice = "Подготовка копии остановлена. Библиотека сохранена."; return nil }
         catch { errorMessage = error.localizedDescription; return nil }
     }
 

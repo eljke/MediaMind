@@ -100,6 +100,9 @@ public actor MediaRepository {
         let f = try sql("PRAGMA foreign_key_check")
         defer { sqlite3_finalize(f) }
         guard sqlite3_step(f) == SQLITE_DONE else { throw Error.backup }
+        let schema = try sql("SELECT COUNT(*) FROM sqlite_schema WHERE type IN ('trigger','view')")
+        defer { sqlite3_finalize(schema) }
+        guard sqlite3_step(schema) == SQLITE_ROW, sqlite3_column_int(schema,0) == 0 else { throw Error.backup }
     }
     public func restoreSnapshot(from url: URL) throws {
         guard try all().isEmpty, try trashed().isEmpty else { throw LibraryBackupError.notEmpty }
