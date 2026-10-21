@@ -25,9 +25,9 @@ final class SpeechPipelineTests: XCTestCase {
     func testAnalyzerFinalResultsAndTimecodes() async throws {
         guard #available(iOS 26.0, *) else { return }
         let range = CMTimeRange(start:CMTime(seconds:2,preferredTimescale:600),duration:CMTime(seconds:3,preferredTimescale:600))
-        let values = [ModuleResult(text:AttributedString("Черновик"),range:range,isFinal:false),
-                      ModuleResult(text:AttributedString("  Привет, мир!  "),range:range,isFinal:true),
-                      ModuleResult(text:AttributedString("   "),range:range,isFinal:true)]
+        let values = [ModuleResult(text:AttributedString("Черновик"),range:range,final:false),
+                      ModuleResult(text:AttributedString("  Привет, мир!  "),range:range,final:true),
+                      ModuleResult(text:AttributedString("   "),range:range,final:true)]
         let results = AsyncThrowingStream<ModuleResult,Error> { stream in
             for value in values { stream.yield(value) }
             stream.finish()
@@ -38,7 +38,7 @@ final class SpeechPipelineTests: XCTestCase {
         XCTAssertEqual(parts.first?.start,2)
         XCTAssertEqual(parts.first?.end,5)
         let invalid = AsyncThrowingStream<ModuleResult,Error> { stream in
-            stream.yield(ModuleResult(text:AttributedString("Текст"),range:.invalid,isFinal:true))
+            stream.yield(ModuleResult(text:AttributedString("Текст"),range:.invalid,final:true))
             stream.finish()
         }
         do { _ = try await AnalyzerSpeech.collect(invalid,text:{ $0.text }); XCTFail("Invalid timecodes must fail") }
@@ -154,7 +154,7 @@ final class SpeechPipelineTests: XCTestCase {
 private struct ModuleResult: SpeechModuleResult, Sendable {
     let text: AttributedString
     let range: CMTimeRange
-    let isFinal: Bool
-    var resultsFinalizationTime: CMTime { CMTimeRangeGetEnd(range) }
+    let final: Bool
+    var resultsFinalizationTime: CMTime { final ? CMTimeRangeGetEnd(range) : range.start }
 }
 #endif
