@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.0.0-beta.1
+
+- feat(app): add offline speech, search, text editing, backups and local summaries
+
 ## v0.3.0
 
 - feat(library): add bookmarks, transcript states and listening history
