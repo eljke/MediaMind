@@ -16,6 +16,7 @@ struct MediaDetail: View {
     @State private var query = ""
     @State private var confirmation: Replacement?
     @State private var editingTranscript: TranscriptDraft?
+    @State private var showSummary = false
     private enum Replacement: String, Identifiable {
         case subtitles, speech
         var id: String { rawValue }
@@ -78,6 +79,7 @@ struct MediaDetail: View {
                         Button("Начать заново") { confirmation = .speech }.frame(minHeight: 44).disabled(vm.busy || loading)
                     }
                     MediaBookmarks(item: item, canAdd: playback.player != nil, currentPosition: { playback.currentPosition }, seek: { playback.seek($0) })
+                    Button { showSummary = true } label: { Label("Конспект записи",systemImage:"note.text").frame(minHeight:44) }.disabled(vm.busy || loading)
                     Button { Task { shareURL = await vm.exportBookmarks(item) } } label: { Label("Экспорт заметок с таймкодами",systemImage:"square.and.arrow.up").frame(minHeight:44) }.disabled(vm.busy)
                     if !segments.isEmpty {
                         HStack {
@@ -118,6 +120,7 @@ struct MediaDetail: View {
         }
         .onDisappear { playback.close() }
         .sheet(item:$editingTranscript) { draft in TranscriptEditor(item:item,draft:draft).environmentObject(vm) }
+        .sheet(isPresented:$showSummary) { MediaSummaryView(item:item).environmentObject(vm) }
         .onChange(of: scenePhase) { _, phase in if phase == .background { playback.pauseAndSave() } }
         .confirmationDialog("Заменить расшифровку?", isPresented: Binding(get: { confirmation != nil }, set: { if !$0 { confirmation = nil } }), titleVisibility: .visible, presenting: confirmation) { replacement in
             Button("Продолжить") {

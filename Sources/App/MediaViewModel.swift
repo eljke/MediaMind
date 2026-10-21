@@ -35,6 +35,7 @@ final class MediaViewModel: ObservableObject {
     private var db: MediaRepository?
     private let root: URL
     private let files = MediaFileImport()
+    private let backups = LibraryBackup()
     private let speech: TranscriptionService
     private var operation: Task<Void, Never>?
     private var reloadGeneration = 0
@@ -252,7 +253,7 @@ final class MediaViewModel: ObservableObject {
         guard let db else { return nil }
         do {
             let notes = try await db.bookmarks(for:item.id)
-            guard !notes.isEmpty else { throw MediaFileImport.ImportError.noCues }
+            guard !notes.isEmpty else { throw LibraryBackupError.noBookmarks }
             let url = FileManager.default.temporaryDirectory.appendingPathComponent("MediaMind-notes-\(item.id).txt")
             try BookmarkExport.text(title:item.title,bookmarks:notes).write(to:url,atomically:true,encoding:.utf8)
             return url
@@ -363,7 +364,7 @@ final class MediaViewModel: ObservableObject {
             if deletedBookmark?.mediaID == item.id { deletedBookmark = nil }
             if transcriptUndo?.item.id == item.id { transcriptUndo = nil }
             UserDefaults.standard.removeObject(forKey: "position-\(item.id)")
-            await reload()
+            await reload(); await runSearch()
         } catch { errorMessage = error.localizedDescription }
     }
 
@@ -376,6 +377,34 @@ final class MediaViewModel: ObservableObject {
             try await db.save(updated)
             await reload(); await runSearch()
         } catch { errorMessage = error.localizedDescription }
+    }
+
+    func createBackup() async -> URL? {
+        guard let db, !busy else { return nil }
+        busy = true; operationTitle = "Создание полной копии"; progress = 0
+        defer { busy = false }
+        do { return try await backups.create(repository:db,root:root) }
+        catch { errorMessage = error.localizedDescription; return nil }
+    }
+
+    func restoreBackup(_ folder: URL) {
+        guard let db else { return }
+        perform("Проверка и восстановление копии") { [self] in
+            try await backups.restore(from:folder,repository:db,root:root)
+            transcriptUndo = nil; deletedBookmark = nil; bookmarkRevision += 1
+            await runSearch()
+            return "Библиотека восстановлена из проверенной копии"
+        }
+    }
+
+    func summary(_ item: MediaItem) async throws -> MediaSummary? {
+        guard let db else { throw MediaRepository.Error.open }
+        return try await db.summary(for:item.id)
+    }
+
+    func saveSummary(_ summary: MediaSummary, for item: MediaItem) async throws {
+        guard let db, !busy else { throw TranscriptEditing.Error.busy }
+        try await db.saveSummary(summary,for:item.id)
     }
 
     func export(_ item: MediaItem, format: String) async -> URL? {

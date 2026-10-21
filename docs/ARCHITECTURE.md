@@ -56,10 +56,17 @@ Library search uses a parameterized union over media titles, transcript segments
 
 Transcript corrections and pairwise merges use the existing replacement transaction, with an expected-content check inside BEGIN IMMEDIATE. This prevents stale editors and undo from overwriting newer text, including writes from another database connection. Editing preserves IDs/timecodes; merges keep the first ID and cover both time ranges. UI editing holds the existing operation lock and explicitly confirms discarding pending recognition. A single in-memory undo snapshot restores text only if the expected revised content still matches; it never resurrects discarded checkpoints. Notes export uses the same time formatter as playback. These features require no schema upgrade.
 
+## Data safety and summaries
+
+Schema v3 adds one saved summary per recording with its source transcript snapshot. SQLite Backup API preserves committed WAL data before migration. Summary drafts select up to twelve evenly distributed fragments, carry original timecodes, and never call a remote model. Editing the transcript retains summaries; comparing the saved source with current segments identifies outdated drafts. Summary replacement is explicit and exports remain local.
+
+Full backups are folders exported through UIDocumentPicker. A serialized backup service uses a consistent SQLite snapshot and copies every referenced immutable media file, including trash, with bounded buffers, size checks, disk-space checks and SHA-256. A manifest is written only after all files succeed. Restore accepts only empty libraries, stages files in a private temporary directory, rejects traversal, symlinks, duplicates, unsupported formats and mismatched file sets/hashes, then checks SQLite integrity and foreign keys. Files are installed before the final SQLite Backup API transaction; errors remove only files installed by this attempt. The staged connection is snapshotted again before restore so migrations cannot leave data only in WAL. Backups are unencrypted and must be saved outside the guest container to survive its removal. Native integration tests exercise complete copies, corruption, unsafe paths and nonempty-library protection; real Files providers require device verification.
+
 ## Continuous delivery contract
 
 - Work on `feature/*` / `fix/*`. AI coding agent creates commits only when it has actual working tree and Git permissions; never hallucinate commits or GitHub releases.
 - `feat:` -> SemVer minor; `fix:` / `perf:` -> patch; `!` or `BREAKING CHANGE:` -> major; non-release types do not bump.
+- An explicit `Config/release.json` beta policy pins the numeric bundle version and sequences `v1.0.0-beta.N` prerelease tags; build numbers still increase. The planner uses the most recent reachable release tag so old feature commits do not cause repeated releases. Stable releases resume when that policy is deliberately removed.
 - CI runs core tests plus unsigned arm64 iOS build for changes; developers must not declare a build successful unless the Actions job passed.
 - After a `feat`/`fix` lands on `master`, `auto-release.yml` creates a versioned release branch, bumps version/build and changelog, runs tests, builds IPA, checks Mach-O ARM64, publishes GitHub Release, fast-forwards into master, then deletes release branch.
 - Protected branch cannot be force-pushed or bypassed; fallback opens PR, which may require approval. Token policy, GitHub Actions permissions, quota and repo settings must be configured by owner.

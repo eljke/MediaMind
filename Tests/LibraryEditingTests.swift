@@ -47,7 +47,7 @@ final class LibraryEditingTests: XCTestCase {
         try await repo.save(item)
         let original = [SpeechSegment(start:1,end:3,text:"Первая"),SpeechSegment(start:4,end:5,text:"фраза.")]
         try await repo.replaceSegments(original,for:item.id)
-        let bookmark = MediaBookmark(mediaID:item.id,position:4,note:"Заметка")
+        let bookmark = MediaBookmark(mediaID:item.id,position:4,note:"Заметка",createdAt:Date(timeIntervalSince1970:100))
         try await repo.saveBookmark(bookmark)
         let merged = try TranscriptEditing.mergeNext(in:original,id:original[0].id)
         try await repo.reviseSegments(merged,replacing:original,for:item.id)

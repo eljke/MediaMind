@@ -42,12 +42,12 @@ public actor MediaRepository {
         }
         let version = sqlite3_column_int(versionStatement,0)
         sqlite3_finalize(versionStatement)
-        guard version <= 2 else {
+        guard version <= 3 else {
             sqlite3_close(db)
             db = nil
             throw Error.newerSchema
         }
-        if existing && version < 2 {
+        if existing && version < 3 {
             do { try Self.backup(db, to: url.appendingPathExtension("v\(version)-backup.sqlite")) }
             catch { sqlite3_close(db); db = nil; throw error }
         }
@@ -68,6 +68,9 @@ public actor MediaRepository {
             let activitySchema = "BEGIN IMMEDIATE; CREATE TABLE bookmarks(id TEXT PRIMARY KEY,media_id TEXT NOT NULL REFERENCES media(id) ON DELETE CASCADE,position REAL NOT NULL CHECK(position>=0),note TEXT NOT NULL,created REAL NOT NULL); CREATE INDEX bookmark_media ON bookmarks(media_id,position); CREATE TABLE playback(media_id TEXT PRIMARY KEY REFERENCES media(id) ON DELETE CASCADE,position REAL NOT NULL CHECK(position>=0),played REAL NOT NULL); CREATE TABLE transcription_failures(media_id TEXT PRIMARY KEY REFERENCES media(id) ON DELETE CASCADE,message TEXT NOT NULL); PRAGMA user_version=2; COMMIT;"
             migrationStatus = sqlite3_exec(db,activitySchema,nil,nil,nil)
         }
+        if schemaStatus == SQLITE_OK && migrationStatus == SQLITE_OK && version < 3 {
+            migrationStatus = sqlite3_exec(db,"BEGIN IMMEDIATE; CREATE TABLE summaries(media_id TEXT PRIMARY KEY REFERENCES media(id) ON DELETE CASCADE,body TEXT NOT NULL,source TEXT NOT NULL); PRAGMA user_version=3; COMMIT;",nil,nil,nil)
+        }
         guard schemaStatus == SQLITE_OK, migrationStatus == SQLITE_OK else {
             if let db { sqlite3_close(db) }
             db = nil
@@ -87,6 +90,46 @@ public actor MediaRepository {
         guard status == SQLITE_DONE, finished == SQLITE_OK else { throw Error.backup }
     }
     deinit { if let db { sqlite3_close(db) } }
+    public func snapshot(to url: URL) throws {
+        try Self.backup(db,to:url)
+    }
+    public func checkIntegrity() throws {
+        let s = try sql("PRAGMA quick_check")
+        defer { sqlite3_finalize(s) }
+        guard sqlite3_step(s) == SQLITE_ROW, let text = sqlite3_column_text(s,0), String(cString:text) == "ok" else { throw Error.backup }
+        let f = try sql("PRAGMA foreign_key_check")
+        defer { sqlite3_finalize(f) }
+        guard sqlite3_step(f) == SQLITE_DONE else { throw Error.backup }
+    }
+    public func restoreSnapshot(from url: URL) throws {
+        guard try all().isEmpty, try trashed().isEmpty else { throw LibraryBackupError.notEmpty }
+        var source: OpaquePointer?
+        guard sqlite3_open_v2(url.path,&source,SQLITE_OPEN_READONLY,nil) == SQLITE_OK else { sqlite3_close(source); throw Error.backup }
+        defer { sqlite3_close(source) }
+        guard let copy = sqlite3_backup_init(db,"main",source,"main") else { throw Error.backup }
+        let status = sqlite3_backup_step(copy,-1)
+        let finished = sqlite3_backup_finish(copy)
+        guard status == SQLITE_DONE, finished == SQLITE_OK else { throw Error.backup }
+    }
+    public func summary(for id: UUID) throws -> MediaSummary? {
+        let s = try sql("SELECT body,source FROM summaries WHERE media_id=?")
+        defer { sqlite3_finalize(s) }
+        _ = id.uuidString.withCString { sqlite3_bind_text(s,1,$0,-1,sqliteTransient) }
+        let status = sqlite3_step(s)
+        if status == SQLITE_DONE { return nil }
+        guard status == SQLITE_ROW, let body = sqlite3_column_text(s,0), let source = sqlite3_column_text(s,1) else { throw Error.sql }
+        return MediaSummary(text:String(cString:body),source:try JSONDecoder().decode([SpeechSegment].self,from:Data(String(cString:source).utf8)))
+    }
+    public func saveSummary(_ summary: MediaSummary, for id: UUID) throws {
+        guard summary.text.count <= MediaSummary.textLimit else { throw TranscriptEditing.Error.invalidText }
+        let source = String(decoding:try JSONEncoder().encode(summary.source),as:UTF8.self)
+        let s = try sql("INSERT INTO summaries(media_id,body,source) VALUES(?,?,?) ON CONFLICT(media_id) DO UPDATE SET body=excluded.body,source=excluded.source")
+        defer { sqlite3_finalize(s) }
+        _ = id.uuidString.withCString { sqlite3_bind_text(s,1,$0,-1,sqliteTransient) }
+        _ = summary.text.withCString { sqlite3_bind_text(s,2,$0,-1,sqliteTransient) }
+        _ = source.withCString { sqlite3_bind_text(s,3,$0,-1,sqliteTransient) }
+        guard sqlite3_step(s) == SQLITE_DONE else { throw Error.sql }
+    }
     private func sql(_ command: String) throws -> OpaquePointer {
         var p: OpaquePointer?
         guard sqlite3_prepare_v2(db,command,-1,&p,nil) == SQLITE_OK, let p else { throw Error.sql }
