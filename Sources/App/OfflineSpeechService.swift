@@ -51,9 +51,12 @@ final class AppleOfflineSpeech: TranscriptionService {
             else { legacy = recognizer.isAvailable ? .ready : .temporarilyUnavailable }
         } else { legacy = .unsupportedLanguage }
         let model: SpeechReadiness.Model
-        if #available(iOS 26.0, *) { model = await AnalyzerSpeech.modelStatus(language: language) }
-        else { model = .unsupportedSystem }
-        return SpeechReadiness(permission: permission, model: model, legacy: legacy)
+        let dictation: SpeechReadiness.Model
+        if #available(iOS 26.0, *) {
+            model = await AnalyzerSpeech.modelStatus(language:language,engine:.analyzer)
+            dictation = await AnalyzerSpeech.modelStatus(language:language,engine:.dictation)
+        } else { model = .unsupportedSystem; dictation = .unsupportedSystem }
+        return SpeechReadiness(permission:permission,model:model,legacy:legacy,dictation:dictation)
     }
 
     func requestPermission() async {
@@ -65,7 +68,10 @@ final class AppleOfflineSpeech: TranscriptionService {
 
     func installModel(language: String, progress: @escaping (Double) -> Void) async throws {
         guard #available(iOS 26.0, *) else { throw SpeechServiceError.unavailable }
-        try await AnalyzerSpeech.install(language: language, progress: progress)
+        let status = await readiness(language:language)
+        if status.model == .installed || status.dictation == .installed, !status.canInstall { progress(1); return }
+        guard let engine = status.installationEngine else { throw SpeechServiceError.unsupportedLanguage }
+        try await AnalyzerSpeech.install(language:language,engine:engine,progress:progress)
     }
 
     func transcribe(file: URL, checkpoint: TranscriptionCheckpoint,
@@ -78,9 +84,9 @@ final class AppleOfflineSpeech: TranscriptionService {
         }
         try Task.checkCancellation()
         guard let engine = status.engine else { throw Self.error(for: status.issue) }
-        if engine == .analyzer, #available(iOS 26.0, *) {
+        if engine != .recognizer, #available(iOS 26.0, *) {
             return try await transcribeChunks(file: file, checkpoint: checkpoint, save: save, progress: progress) { url in
-                try await AnalyzerSpeech.recognize(url: url, language: checkpoint.language)
+                try await AnalyzerSpeech.recognize(url:url,language:checkpoint.language,engine:engine)
             }
         }
         guard let recognizer = SFSpeechRecognizer(locale: Locale(identifier: checkpoint.language)) else { throw SpeechServiceError.unsupportedLanguage }

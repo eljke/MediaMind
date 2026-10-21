@@ -79,6 +79,23 @@ final class MediaWorkflowTests: XCTestCase {
         XCTAssertTrue(speech.offsets.isEmpty)
     }
 
+    func testDictationPreparationWithoutLegacyPermission() async throws {
+        let speech = ScriptedSpeech()
+        speech.status = SpeechReadiness(permission:.denied,model:.unsupportedLanguage,legacy:.offlineUnavailable,dictation:.missing)
+        let vm = MediaViewModel(root:try temporaryFolder(),speech:speech)
+        await vm.reload()
+        await vm.checkSpeech()
+        XCTAssertFalse(vm.canTranscribe)
+        XCTAssertEqual(vm.speechReadiness?.installationEngine,.dictation)
+        vm.installSpeechModel()
+        try await waitUntil { !vm.busy }
+        XCTAssertEqual(speech.installRequests,1)
+        XCTAssertEqual(speech.permissionRequests,0)
+        XCTAssertEqual(vm.speechReadiness?.engine,.dictation)
+        XCTAssertTrue(vm.canTranscribe)
+        XCTAssertNil(vm.errorMessage)
+    }
+
     func testDownloadCancellation() async throws {
         let root = try temporaryFolder()
         let speech = ScriptedSpeech()
@@ -364,11 +381,12 @@ private final class ScriptedSpeech: TranscriptionService {
 
     func installModel(language: String, progress: @escaping (Double) -> Void) async throws {
         installRequests += 1
-        status.model = .downloading
+        let dictation = status.installationEngine == .dictation
+        if dictation { status.dictation = .downloading } else { status.model = .downloading }
         lateProgress = progress
         progress(0.5)
         try await Task.sleep(for:installDelay)
-        status.model = .installed
+        if dictation { status.dictation = .installed } else { status.model = .installed }
     }
 
     func transcribe(file: URL, checkpoint: TranscriptionCheckpoint, save: @escaping (TranscriptionCheckpoint) async throws -> Void, progress: @escaping (Double) -> Void) async throws -> [SpeechSegment] {
