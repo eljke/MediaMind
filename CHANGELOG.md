@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.0.0-beta.2
+
+- fix(speech): provision Russian offline dictation models
+
 ## v1.0.0-beta.1
 
 - feat(app): add offline speech, search, text editing, backups and local summaries
