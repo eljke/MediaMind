@@ -53,4 +53,24 @@ class ReleaseTests(unittest.TestCase):
         self.assertIn('major 0.1.0 -> 1.0.0',(self.call(sys.executable,'tools/release.py','plan').stdout))
         self.assertNotEqual(self.call(sys.executable,'tools/release.py','check-message','--message','random commit',ok=False).returncode,0)
 
+    def test_beta_lifecycle(self):
+        (self.path/'Config/release.json').write_text('{"baseVersion":"1.0.0","channel":"beta"}\n')
+        self.commit('feat(backup): preserve library','beta')
+        output=self.path/'outputs.txt'
+        self.call(sys.executable,'tools/release.py','plan','--output',str(output))
+        self.assertIn('tag=1.0.0-beta.1',output.read_text())
+        self.assertIn('prerelease=true',output.read_text())
+        self.call(sys.executable,'tools/release.py','prepare','--version','1.0.0','--tag','1.0.0-beta.1')
+        self.assertEqual(json.loads((self.path/'Config/version.json').read_text()),{'version':'1.0.0','build':2})
+        self.assertIn('## v1.0.0-beta.1',(self.path/'CHANGELOG.md').read_text())
+        self.commit('chore(release): v1.0.0-beta.1','released')
+        self.call('git','tag','v1.0.0-beta.1')
+        self.assertIn('plan: none',self.call(sys.executable,'tools/release.py','plan').stdout)
+        self.commit('fix(backup): handle missing files','next')
+        output.unlink()
+        self.call(sys.executable,'tools/release.py','plan','--output',str(output))
+        self.assertIn('tag=1.0.0-beta.2',output.read_text())
+        self.call(sys.executable,'tools/release.py','prepare','--version','1.0.0','--tag','1.0.0-beta.2')
+        self.assertEqual(json.loads((self.path/'Config/version.json').read_text())['build'],3)
+
 if __name__=='__main__': unittest.main()

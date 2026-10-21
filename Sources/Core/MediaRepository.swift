@@ -9,7 +9,7 @@ private let sqliteTransient = unsafeBitCast(-1, to: sqlite3_destructor_type.self
 public actor MediaRepository {
     private var db: OpaquePointer?
     public enum Error: LocalizedError {
-        case open, sql, invalidSegment, newerSchema, backup, invalidBookmark, invalidPlayback
+        case open, sql, invalidSegment, newerSchema, backup, invalidBookmark, invalidPlayback, transcriptConflict
         public var errorDescription: String? {
             switch self {
             case .open: return "Не удалось открыть локальную библиотеку."
@@ -19,6 +19,7 @@ public actor MediaRepository {
             case .backup: return "Не удалось создать копию базы перед обновлением. Проверь свободное место."
             case .invalidBookmark: return "Проверь время закладки и длину заметки (до 2000 символов)."
             case .invalidPlayback: return "Не удалось сохранить некорректную позицию воспроизведения."
+            case .transcriptConflict: return "Расшифровка уже изменилась. Открой её заново; сохранённые данные не перезаписаны."
             }
         }
     }
@@ -41,12 +42,12 @@ public actor MediaRepository {
         }
         let version = sqlite3_column_int(versionStatement,0)
         sqlite3_finalize(versionStatement)
-        guard version <= 2 else {
+        guard version <= 3 else {
             sqlite3_close(db)
             db = nil
             throw Error.newerSchema
         }
-        if existing && version < 2 {
+        if existing && version < 3 {
             do { try Self.backup(db, to: url.appendingPathExtension("v\(version)-backup.sqlite")) }
             catch { sqlite3_close(db); db = nil; throw error }
         }
@@ -67,6 +68,9 @@ public actor MediaRepository {
             let activitySchema = "BEGIN IMMEDIATE; CREATE TABLE bookmarks(id TEXT PRIMARY KEY,media_id TEXT NOT NULL REFERENCES media(id) ON DELETE CASCADE,position REAL NOT NULL CHECK(position>=0),note TEXT NOT NULL,created REAL NOT NULL); CREATE INDEX bookmark_media ON bookmarks(media_id,position); CREATE TABLE playback(media_id TEXT PRIMARY KEY REFERENCES media(id) ON DELETE CASCADE,position REAL NOT NULL CHECK(position>=0),played REAL NOT NULL); CREATE TABLE transcription_failures(media_id TEXT PRIMARY KEY REFERENCES media(id) ON DELETE CASCADE,message TEXT NOT NULL); PRAGMA user_version=2; COMMIT;"
             migrationStatus = sqlite3_exec(db,activitySchema,nil,nil,nil)
         }
+        if schemaStatus == SQLITE_OK && migrationStatus == SQLITE_OK && version < 3 {
+            migrationStatus = sqlite3_exec(db,"BEGIN IMMEDIATE; CREATE TABLE summaries(media_id TEXT PRIMARY KEY REFERENCES media(id) ON DELETE CASCADE,body TEXT NOT NULL,source TEXT NOT NULL); PRAGMA user_version=3; COMMIT;",nil,nil,nil)
+        }
         guard schemaStatus == SQLITE_OK, migrationStatus == SQLITE_OK else {
             if let db { sqlite3_close(db) }
             db = nil
@@ -84,8 +88,53 @@ public actor MediaRepository {
         let status = sqlite3_backup_step(copy, -1)
         let finished = sqlite3_backup_finish(copy)
         guard status == SQLITE_DONE, finished == SQLITE_OK else { throw Error.backup }
+        // A standalone snapshot must open read-only without WAL sidecars on iOS.
+        guard sqlite3_exec(destination,"PRAGMA journal_mode=DELETE",nil,nil,nil) == SQLITE_OK else { throw Error.backup }
     }
     deinit { if let db { sqlite3_close(db) } }
+    public func snapshot(to url: URL) throws {
+        try Self.backup(db,to:url)
+    }
+    public func checkIntegrity() throws {
+        let s = try sql("PRAGMA quick_check")
+        defer { sqlite3_finalize(s) }
+        guard sqlite3_step(s) == SQLITE_ROW, let text = sqlite3_column_text(s,0), String(cString:text) == "ok" else { throw Error.backup }
+        let f = try sql("PRAGMA foreign_key_check")
+        defer { sqlite3_finalize(f) }
+        guard sqlite3_step(f) == SQLITE_DONE else { throw Error.backup }
+        let schema = try sql("SELECT COUNT(*) FROM sqlite_schema WHERE type IN ('trigger','view')")
+        defer { sqlite3_finalize(schema) }
+        guard sqlite3_step(schema) == SQLITE_ROW, sqlite3_column_int(schema,0) == 0 else { throw Error.backup }
+    }
+    public func restoreSnapshot(from url: URL) throws {
+        guard try all().isEmpty, try trashed().isEmpty else { throw LibraryBackupError.notEmpty }
+        var source: OpaquePointer?
+        guard sqlite3_open_v2(url.path,&source,SQLITE_OPEN_READONLY,nil) == SQLITE_OK else { sqlite3_close(source); throw Error.backup }
+        defer { sqlite3_close(source) }
+        guard let copy = sqlite3_backup_init(db,"main",source,"main") else { throw Error.backup }
+        let status = sqlite3_backup_step(copy,-1)
+        let finished = sqlite3_backup_finish(copy)
+        guard status == SQLITE_DONE, finished == SQLITE_OK else { throw Error.backup }
+    }
+    public func summary(for id: UUID) throws -> MediaSummary? {
+        let s = try sql("SELECT body,source FROM summaries WHERE media_id=?")
+        defer { sqlite3_finalize(s) }
+        _ = id.uuidString.withCString { sqlite3_bind_text(s,1,$0,-1,sqliteTransient) }
+        let status = sqlite3_step(s)
+        if status == SQLITE_DONE { return nil }
+        guard status == SQLITE_ROW, let body = sqlite3_column_text(s,0), let source = sqlite3_column_text(s,1) else { throw Error.sql }
+        return MediaSummary(text:String(cString:body),source:try JSONDecoder().decode([SpeechSegment].self,from:Data(String(cString:source).utf8)))
+    }
+    public func saveSummary(_ summary: MediaSummary, for id: UUID) throws {
+        guard summary.text.count <= MediaSummary.textLimit else { throw TranscriptEditing.Error.invalidText }
+        let source = String(decoding:try JSONEncoder().encode(summary.source),as:UTF8.self)
+        let s = try sql("INSERT INTO summaries(media_id,body,source) VALUES(?,?,?) ON CONFLICT(media_id) DO UPDATE SET body=excluded.body,source=excluded.source")
+        defer { sqlite3_finalize(s) }
+        _ = id.uuidString.withCString { sqlite3_bind_text(s,1,$0,-1,sqliteTransient) }
+        _ = summary.text.withCString { sqlite3_bind_text(s,2,$0,-1,sqliteTransient) }
+        _ = source.withCString { sqlite3_bind_text(s,3,$0,-1,sqliteTransient) }
+        guard sqlite3_step(s) == SQLITE_DONE else { throw Error.sql }
+    }
     private func sql(_ command: String) throws -> OpaquePointer {
         var p: OpaquePointer?
         guard sqlite3_prepare_v2(db,command,-1,&p,nil) == SQLITE_OK, let p else { throw Error.sql }
@@ -141,9 +190,13 @@ public actor MediaRepository {
         guard sqlite3_step(s) == SQLITE_DONE else { throw Error.sql }
     }
     public func replaceSegments(_ parts: [SpeechSegment], for id: UUID) throws {
+        try storeSegments(parts,for:id,expecting:nil)
+    }
+    private func storeSegments(_ parts: [SpeechSegment], for id: UUID, expecting previous: [SpeechSegment]?) throws {
         guard parts.allSatisfy({ $0.start.isFinite && $0.end.isFinite && $0.start >= 0 && $0.end >= $0.start }) else { throw Error.invalidSegment }
         guard sqlite3_exec(db,"BEGIN IMMEDIATE",nil,nil,nil) == SQLITE_OK else { throw Error.sql }
         do {
+            if let previous, try segments(for:id) != previous.sorted(by: { ($0.start,$0.end,$0.id.uuidString) < ($1.start,$1.end,$1.id.uuidString) }) { throw Error.transcriptConflict }
             let d = try sql("DELETE FROM segments WHERE media_id=?")
             _ = id.uuidString.withCString { sqlite3_bind_text(d,1,$0,-1,sqliteTransient) }
             let deleted = sqlite3_step(d) == SQLITE_DONE
@@ -169,7 +222,7 @@ public actor MediaRepository {
         }
     }
     public func segments(for id: UUID) throws -> [SpeechSegment] {
-        let s = try sql("SELECT id,start,finish,body FROM segments WHERE media_id=? ORDER BY start")
+        let s = try sql("SELECT id,start,finish,body FROM segments WHERE media_id=? ORDER BY start,finish,id")
         defer { sqlite3_finalize(s) }
         _ = id.uuidString.withCString { sqlite3_bind_text(s,1,$0,-1,sqliteTransient) }
         var result: [SpeechSegment] = []
@@ -279,23 +332,47 @@ public actor MediaRepository {
         _ = id.uuidString.withCString { sqlite3_bind_text(s,1,$0,-1,sqliteTransient) }
         guard sqlite3_step(s) == SQLITE_DONE else { throw Error.sql }
     }
+    public func reviseSegments(_ updated: [SpeechSegment], replacing previous: [SpeechSegment], for id: UUID) throws {
+        try storeSegments(updated,for:id,expecting:previous)
+    }
+
     public func search(_ query: String, limit: Int = 200) throws -> [MediaHit] {
+        try find(query,scope:.transcripts,limit:limit).compactMap {
+            if case .transcript(let segment) = $0.match { return MediaHit(item:$0.item,segment:segment) }
+            return nil
+        }
+    }
+
+    public func find(_ query: String, scope: SearchScope = .all, kind: MediaKind = .all, limit: Int = 50, offset: Int = 0) throws -> [LibrarySearchHit] {
         let query = MediaSearch.normalized(query.trimmingCharacters(in: .whitespacesAndNewlines))
-        guard !query.isEmpty, limit > 0 else { return [] }
-        let s = try sql("SELECT m.id,m.title,m.file,m.added,m.duration,s.id,s.start,s.finish,s.body FROM segments s JOIN media m ON m.id=s.media_id WHERE NOT EXISTS(SELECT 1 FROM media_trash WHERE media_id=m.id) AND media_normalized(s.body) LIKE ? ESCAPE '\\' ORDER BY m.added DESC,s.start LIMIT ?")
+        guard !query.isEmpty, limit > 0, offset >= 0 else { return [] }
+        var sources: [String] = []
+        if scope == .all || scope == .titles { sources.append("SELECT id AS mid,id AS rid,0 AS kind,0 AS start,0 AS finish,title AS body,0 AS created FROM media WHERE media_normalized(title) LIKE (SELECT value FROM pattern) ESCAPE '\\'") }
+        if scope == .all || scope == .transcripts { sources.append("SELECT media_id,id,1,start,finish,body,0 FROM segments WHERE media_normalized(body) LIKE (SELECT value FROM pattern) ESCAPE '\\'") }
+        if scope == .all || scope == .bookmarks { sources.append("SELECT media_id,id,2,position,position,note,created FROM bookmarks WHERE media_normalized(note) LIKE (SELECT value FROM pattern) ESCAPE '\\'") }
+        let video = "(lower(m.file) LIKE '%.mov' OR lower(m.file) LIKE '%.mp4' OR lower(m.file) LIKE '%.m4v')"
+        let mediaFilter = kind == .all ? "1" : (kind == .video ? video : "NOT \(video)")
+        let s = try sql("WITH pattern AS (SELECT ? AS value), matches(mid,rid,kind,start,finish,body,created) AS (\(sources.joined(separator:" UNION ALL "))) SELECT m.id,m.title,m.file,m.added,m.duration,r.rid,r.kind,r.start,r.finish,r.body,r.created FROM matches r JOIN media m ON m.id=r.mid WHERE NOT EXISTS(SELECT 1 FROM media_trash WHERE media_id=m.id) AND \(mediaFilter) ORDER BY m.added DESC,m.id,r.kind,r.start,r.rid LIMIT ? OFFSET ?")
         defer { sqlite3_finalize(s) }
         let escaped = query.replacingOccurrences(of:"\\",with:"\\\\").replacingOccurrences(of:"%",with:"\\%").replacingOccurrences(of:"_",with:"\\_")
         _ = ("%" + escaped + "%").withCString { sqlite3_bind_text(s,1,$0,-1,sqliteTransient) }
         sqlite3_bind_int(s,2,Int32(max(1,min(1000,limit))))
-        var hits: [MediaHit] = []
+        sqlite3_bind_int64(s,3,Int64(offset))
+        var hits: [LibrarySearchHit] = []
         var status = sqlite3_step(s)
         while status == SQLITE_ROW {
             defer { status = sqlite3_step(s) }
             func str(_ index: Int32) -> String { guard let c = sqlite3_column_text(s,index) else { return "" }; return String(cString:c) }
             guard let itemID = UUID(uuidString:str(0)), let segID = UUID(uuidString:str(5)) else { continue }
             let item = MediaItem(id:itemID,title:str(1),fileName:str(2),addedAt:Date(timeIntervalSince1970:sqlite3_column_double(s,3)),duration:sqlite3_column_double(s,4))
-            let seg = SpeechSegment(id:segID,start:sqlite3_column_double(s,6),end:sqlite3_column_double(s,7),text:str(8))
-            hits.append(MediaHit(item:item,segment:seg))
+            let match: LibrarySearchHit.Match
+            switch sqlite3_column_int(s,6) {
+            case 0: match = .title
+            case 1: match = .transcript(SpeechSegment(id:segID,start:sqlite3_column_double(s,7),end:sqlite3_column_double(s,8),text:str(9)))
+            case 2: match = .bookmark(MediaBookmark(id:segID,mediaID:itemID,position:sqlite3_column_double(s,7),note:str(9),createdAt:Date(timeIntervalSince1970:sqlite3_column_double(s,10))))
+            default: throw Error.sql
+            }
+            hits.append(LibrarySearchHit(item:item,match:match))
         }
         guard status == SQLITE_DONE else { throw Error.sql }
         return hits

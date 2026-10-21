@@ -15,6 +15,8 @@ struct MediaDetail: View {
     @State private var shareURL: URL?
     @State private var query = ""
     @State private var confirmation: Replacement?
+    @State private var editingTranscript: TranscriptDraft?
+    @State private var showSummary = false
     private enum Replacement: String, Identifiable {
         case subtitles, speech
         var id: String { rawValue }
@@ -52,6 +54,7 @@ struct MediaDetail: View {
                         Text("Русский").tag("ru-RU")
                         Text("English").tag("en-US")
                     }.pickerStyle(.segmented).disabled(vm.busy)
+                    SpeechReadinessView()
                     VStack(spacing: 10) {
                         Button {
                             if segments.isEmpty && checkpoint == nil { pickSubtitle = true }
@@ -65,7 +68,7 @@ struct MediaDetail: View {
                         } label: {
                             Label(checkpoint?.language == vm.language ? "Продолжить распознавание" : "Распознать офлайн", systemImage: "waveform")
                                 .frame(maxWidth: .infinity, minHeight: 36)
-                        }.buttonStyle(.borderedProminent)
+                        }.buttonStyle(.borderedProminent).disabled(!vm.canTranscribe)
                     }.disabled(vm.busy || !vm.ready || loading)
                     if let checkpoint {
                         Label("Сохранено до \(Self.time(checkpoint.nextOffset)) · \(checkpoint.language == "ru-RU" ? "Русский" : "English")", systemImage: "pause.circle")
@@ -73,8 +76,11 @@ struct MediaDetail: View {
                         if checkpoint.language != vm.language {
                             Text("При смене языка распознавание начнётся заново.").font(.footnote).foregroundStyle(.secondary)
                         }
+                        Button("Начать заново") { confirmation = .speech }.frame(minHeight: 44).disabled(vm.busy || loading)
                     }
                     MediaBookmarks(item: item, canAdd: playback.player != nil, currentPosition: { playback.currentPosition }, seek: { playback.seek($0) })
+                    Button { showSummary = true } label: { Label("Конспект записи",systemImage:"note.text").frame(minHeight:44) }.disabled(vm.busy || loading)
+                    Button { Task { shareURL = await vm.exportBookmarks(item) } } label: { Label("Экспорт заметок с таймкодами",systemImage:"square.and.arrow.up").frame(minHeight:44) }.disabled(vm.busy)
                     if !segments.isEmpty {
                         HStack {
                             Text("Расшифровка · \(segments.count)").font(.headline)
@@ -87,19 +93,7 @@ struct MediaDetail: View {
                         }
                         if visibleSegments.isEmpty { ContentUnavailableView.search(text: query) }
                         ForEach(visibleSegments) { segment in
-                            Button { playback.seek(segment.start) } label: {
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text(Self.time(segment.start)).font(.caption.monospacedDigit()).foregroundStyle(.indigo)
-                                    Text(segment.text).foregroundStyle(.primary).multilineTextAlignment(.leading)
-                                }
-                                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                                .padding(12)
-                                .background(playback.position >= segment.start && playback.position < segment.end ? Color.indigo.opacity(0.12) : Color.secondary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("\(Self.time(segment.start)). \(segment.text)")
-                            .accessibilityHint("Воспроизвести с этого момента")
-                            .id(segment.id)
+                            transcriptRow(segment).id(segment.id)
                         }
                     } else if loading { ProgressView("Загрузка расшифровки") }
                     else {
@@ -125,6 +119,8 @@ struct MediaDetail: View {
             }
         }
         .onDisappear { playback.close() }
+        .sheet(item:$editingTranscript) { draft in TranscriptEditor(item:item,draft:draft).environmentObject(vm) }
+        .sheet(isPresented:$showSummary) { MediaSummaryView(item:item).environmentObject(vm) }
         .onChange(of: scenePhase) { _, phase in if phase == .background { playback.pauseAndSave() } }
         .confirmationDialog("Заменить расшифровку?", isPresented: Binding(get: { confirmation != nil }, set: { if !$0 { confirmation = nil } }), titleVisibility: .visible, presenting: confirmation) { replacement in
             Button("Продолжить") {
@@ -152,8 +148,30 @@ struct MediaDetail: View {
     }
 
     static func time(_ seconds: Double) -> String {
-        let n = Int(seconds.isFinite ? min(359_999_999, max(0, seconds)) : 0)
-        return n >= 3600 ? String(format: "%d:%02d:%02d", n / 3600, n / 60 % 60, n % 60) : String(format: "%d:%02d", n / 60, n % 60)
+        MediaTime.label(seconds)
+    }
+    private func transcriptRow(_ segment: SpeechSegment) -> some View {
+        HStack(alignment:.top,spacing:8) {
+            Button { playback.seek(segment.start) } label: {
+                VStack(alignment:.leading,spacing:6) {
+                    Text(Self.time(segment.start)).font(.caption.monospacedDigit()).foregroundStyle(.indigo)
+                    HighlightedText(text:segment.text,query:query).foregroundStyle(.primary).multilineTextAlignment(.leading)
+                }.frame(maxWidth:.infinity,minHeight:44,alignment:.leading)
+            }.buttonStyle(.plain).accessibilityLabel("\(Self.time(segment.start)). \(segment.text)").accessibilityHint("Воспроизвести с этого момента")
+            Menu {
+                Button("Исправить текст",systemImage:"pencil") { edit(segment,merge:false) }
+                if segment.id != segments.last?.id { Button("Объединить со следующим",systemImage:"text.append") { edit(segment,merge:true) } }
+            } label: { Image(systemName:"ellipsis.circle").frame(width:44,height:44) }
+                .disabled(vm.busy).accessibilityLabel("Действия с текстом на \(Self.time(segment.start))")
+        }.padding(12).background(playback.position >= segment.start && playback.position < segment.end ? Color.indigo.opacity(0.12) : Color.secondary.opacity(0.05),in:RoundedRectangle(cornerRadius:12))
+    }
+
+    private func edit(_ segment: SpeechSegment, merge: Bool) {
+        do {
+            guard let index = segments.firstIndex(where: { $0.id == segment.id }) else { throw TranscriptEditing.Error.missingSegment }
+            let proposed = merge ? try TranscriptEditing.mergeNext(in:segments,id:segment.id) : segments
+            editingTranscript = TranscriptDraft(original:segments,proposed:proposed,segment:proposed[index])
+        } catch { vm.errorMessage = error.localizedDescription }
     }
     private struct SharedFile: Identifiable { let url: URL; var id: String { url.absoluteString } }
 }

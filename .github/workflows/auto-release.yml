@@ -16,9 +16,11 @@ jobs:
     outputs:
       should_release: ${{ steps.plan.outputs.should_release }}
       version: ${{ steps.plan.outputs.version }}
+      tag: ${{ steps.plan.outputs.tag }}
+      prerelease: ${{ steps.plan.outputs.prerelease }}
       release_sha: ${{ steps.branch.outputs.release_sha }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           persist-credentials: true
@@ -34,17 +36,18 @@ jobs:
         id: branch
         env:
           VERSION: ${{ steps.plan.outputs.version }}
+          TAG: ${{ steps.plan.outputs.tag }}
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git switch -c "release/v$VERSION"
-          python3 tools/release.py prepare --version "$VERSION"
+          git switch -c "release/v$TAG"
+          python3 tools/release.py prepare --version "$VERSION" --tag "$TAG"
           python3 tools/generate_xcodeproj.py
           project=$(python3 -c 'import json;print(json.load(open("Config/project.json"))["name"])')
           git add Config/version.json CHANGELOG.md "$project.xcodeproj/project.pbxproj"
-          git commit -m "chore(release): v$VERSION"
-          git push origin "release/v$VERSION"
+          git commit -m "chore(release): v$TAG"
+          git push origin "release/v$TAG"
           echo "release_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
   build:
     if: needs.prepare.outputs.should_release == 'true'
@@ -53,16 +56,16 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
-          ref: release/v${{ needs.prepare.outputs.version }}
+          ref: release/v${{ needs.prepare.outputs.tag }}
       - name: Run Swift core tests
         run: swift test -j 2
       - name: Build and verify unsigned iPhone IPA
         run: bash tools/build_ipa_macos.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
-          name: release-${{ needs.prepare.outputs.version }}
+          name: release-${{ needs.prepare.outputs.tag }}
           path: |
             build/dist/*-unsigned.ipa
             build/dist/*.sha256
@@ -75,37 +78,40 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           persist-credentials: true
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
-          name: release-${{ needs.prepare.outputs.version }}
+          name: release-${{ needs.prepare.outputs.tag }}
           path: dist
       - name: Publish GitHub Release containing IPA
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ needs.prepare.outputs.version }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
           RELEASE_SHA: ${{ needs.prepare.outputs.release_sha }}
         run: |
           set -euo pipefail
           test -n "$(find dist -maxdepth 1 -name "*-unsigned.ipa" -print -quit)"
-          gh release create "v$VERSION" dist/*-unsigned.ipa dist/*.sha256 --target "$RELEASE_SHA" --title "v$VERSION" --generate-notes
+          flags=()
+          if [ "$PRERELEASE" = true ]; then flags+=(--prerelease --latest=false); fi
+          gh release create "v$TAG" dist/*-unsigned.ipa dist/*.sha256 --target "$RELEASE_SHA" --title "v$TAG" --generate-notes "${flags[@]}"
       - name: Merge release branch back into master by fast-forward
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ needs.prepare.outputs.version }}
+          TAG: ${{ needs.prepare.outputs.tag }}
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git fetch origin master "release/v$VERSION"
+          git fetch origin master "release/v$TAG"
           git switch -C master origin/master
-          if git merge --ff-only "origin/release/v$VERSION" && git push origin HEAD:master; then
-            git push origin --delete "release/v$VERSION"
+          if git merge --ff-only "origin/release/v$TAG" && git push origin HEAD:master; then
+            git push origin --delete "release/v$TAG"
           else
             echo 'Protected master: leave release branch intact and open PR for approval.'
-            gh pr create --base master --head "release/v$VERSION" --title "chore(release): merge v$VERSION" --body 'Build/release passed. Merge this release branch according to branch protection rules.' || true
+            gh pr create --base master --head "release/v$TAG" --title "chore(release): merge v$TAG" --body 'Build/release passed. Merge this release branch according to branch protection rules.' || true
             exit 1
           fi
